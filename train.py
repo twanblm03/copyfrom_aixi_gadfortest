@@ -126,11 +126,14 @@ parser.add_argument('--batch', default=16, type=int, help='Batch size')
 parser.add_argument('--micro_batch', default=0, type=int,
                     help='micro-batch size for gradient accumulation (0 disables accumulation)')
 parser.add_argument('--test_batch', default=16, type=int, help='Test batch size')
-parser.add_argument('--lr', default=1e-5, type=float, help='Initial learning rate')
-parser.add_argument('--max_lr', default=1e-4, type=float, help='Max learning rate')
-parser.add_argument('--lr_step', default=4, type=int, help='step size for learning rate scheduler')
-parser.add_argument('--lr_step_down', default=25, type=int, help='step down size (cyclic) for learning rate scheduler')
-parser.add_argument('--weight_decay', default=1e-4, type=float, help='weight decay')
+parser.add_argument('--lr', default=1e-5, type=float,
+                    help='initial learning rate before linear warmup')
+parser.add_argument('--max_lr', default=1e-4, type=float,
+                    help='peak learning rate after linear warmup')
+parser.add_argument('--warmup_epochs', default=5, type=int,
+                    help='number of linear warmup epochs (Café paper: 5)')
+parser.add_argument('--weight_decay', default=0.0, type=float,
+                    help='L2 penalty for Adam (Café paper uses 0)')
 parser.add_argument('--drop_rate', default=0.1, type=float, help='Dropout rate')
 parser.add_argument('--gradient_clipping', action='store_true', help='use gradient clipping')
 parser.add_argument('--max_norm', default=1.0, type=float, help='gradient clipping max norm')
@@ -351,34 +354,48 @@ def main():
         else:
             head_params.append(param)
     
-    # 计算 Backbone 学习率
-    backbone_lr = args.lr * args.backbone_lr_scale
+    if args.warmup_epochs < 1 or args.warmup_epochs > args.epochs:
+        raise ValueError('--warmup_epochs must be in [1, --epochs]')
+    if args.lr <= 0 or args.max_lr <= 0 or args.lr > args.max_lr:
+        raise ValueError('learning rates must be positive and satisfy --lr <= --max_lr')
+
+    backbone_initial_lr = args.lr * args.backbone_lr_scale
+    backbone_max_lr = args.max_lr * args.backbone_lr_scale
     
     if is_main_process():
         print_log(save_path, '--------------------Learning Rate Configuration--------------------')
-        print_log(save_path, f'Head learning rate: {args.lr}')
-        print_log(save_path, f'Backbone learning rate: {backbone_lr} (scale: {args.backbone_lr_scale})')
+        print_log(save_path, 'Schedule: linear warmup, then linear decay (Café paper)')
+        print_log(save_path, f'Head LR: {args.lr} -> {args.max_lr} over {args.warmup_epochs} epochs')
+        print_log(save_path, f'Backbone LR: {backbone_initial_lr} -> {backbone_max_lr} '
+                             f'(scale: {args.backbone_lr_scale})')
         print_log(save_path, f'Backbone params count: {sum(p.numel() for p in backbone_params):,}')
         print_log(save_path, f'Head params count: {sum(p.numel() for p in head_params):,}')
     
     # 构建参数组
     param_groups = [
-        {'params': head_params, 'lr': args.lr},
-        {'params': backbone_params, 'lr': backbone_lr}
+        {'params': head_params, 'lr': args.max_lr},
+        {'params': backbone_params, 'lr': backbone_max_lr}
     ]
     
-    optimizer = torch.optim.AdamW(param_groups, betas=(0.9, 0.999), eps=1e-8,
-                                  weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(param_groups, betas=(0.9, 0.999), eps=1e-8,
+                                 weight_decay=args.weight_decay)
 
-    # 注意: CyclicLR 对多参数组的支持有限，这里改用 CosineAnnealingLR 或保持 CyclicLR
-    # CyclicLR 会按比例缩放各参数组的学习率
-    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, 
-                                                  base_lr=[args.lr, backbone_lr], 
-                                                  max_lr=[args.max_lr, args.max_lr * args.backbone_lr_scale], 
-                                                  step_size_up=args.lr_step,
-                                                  step_size_down=args.lr_step_down, 
-                                                  mode='triangular2',
-                                                  cycle_momentum=False)
+    def paper_lr_factor(epoch_index):
+        """Café schedule: 1e-5 -> 1e-4 in 5 epochs, then decay to zero."""
+        if epoch_index < args.warmup_epochs:
+            if args.warmup_epochs == 1:
+                return 1.0
+            start_factor = args.lr / args.max_lr
+            return start_factor + (1.0 - start_factor) * epoch_index / (args.warmup_epochs - 1)
+
+        decay_epochs = args.epochs - args.warmup_epochs
+        if decay_epochs == 0:
+            return 1.0
+        return max(0.0, (args.epochs - (epoch_index + 1)) / decay_epochs)
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lr_lambda=[paper_lr_factor, paper_lr_factor]
+    )
 
     if args.load_model:
         # A checkpoint is saved by rank 0.  On DDP resume, map its CUDA

@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Paper configuration: fine-tune only the last two DINOv2 blocks with a global
-# batch of 16.  Set USE_MAE=1 to train with verified VideoMAE-v2 Giant features.
-# Override DATA_PATH, GROUNDTRUTH, DEVICE, and VIDEOMAE_FEATS_PATH as needed.
+# Café-paper training configuration, adapted to DINOv2: fine-tune only the
+# last two blocks at 0.1x head LR, on four GPUs with global batch size 16.
+# Set USE_MAE=1 only when a verified VideoMAE-v2 cache is available.
+# Override DATA_PATH, GROUNDTRUTH, DEVICE, PYTHON_BIN, and VIDEOMAE_FEATS_PATH as needed.
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-data_path="${DATA_PATH:-/nas/mzy/dataset/Cafe_Dataset/Cafe_Dataset/Dataset}"
-groundtruth="${GROUNDTRUTH:-/nas/mzy/dataset/Cafe_Dataset/Cafe_Dataset/evaluation/gt_tracks.txt}"
+data_path="${DATA_PATH:-/share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset}"
+groundtruth="${GROUNDTRUTH:-${repo_root}/evaluation/gt_tracks.txt}"
 local_tracks="${repo_root}/.local_data/cafe/gt_tracks.pkl"
 tracks_path="${TRACKS_PATH:-${local_tracks}}"
 device="${DEVICE:-0,1,2,3}"
 IFS=',' read -r -a device_list <<< "${device}"
 world_size="${NPROC_PER_NODE:-${#device_list[@]}}"
 master_port="${MASTER_PORT:-29500}"
-python_bin="${PYTHON_BIN:-/data2/mzy/GAD/.miniconda3/envs/gad/bin/python}"
+python_bin="${PYTHON_BIN:-python}"
 use_mae="${USE_MAE:-0}"
 videomae_feats_path="${VIDEOMAE_FEATS_PATH:-${repo_root}/.local_data/videomae_v2_giant}"
 # This machine's default NCCL P2P path stalls.  Use shared-memory transport;
@@ -23,9 +24,16 @@ nccl_ib_disable="${NCCL_IB_DISABLE:-1}"
 resume_args=()
 mae_args=(--no_mae)
 
-if [[ ! -x "${python_bin}" ]]; then
-  echo "Python environment not found: ${python_bin}. Set PYTHON_BIN or activate gad." >&2
+if ! command -v "${python_bin}" >/dev/null 2>&1; then
+  echo "Python executable not found: ${python_bin}. Set PYTHON_BIN or activate gad." >&2
   exit 1
+fi
+
+# Prefer the interpreter environment's C++ runtime over the host's older one.
+python_bin_path="$(command -v "${python_bin}")"
+python_root="$(cd "$(dirname "${python_bin_path}")/.." && pwd)"
+if [[ -f "${python_root}/lib/libstdc++.so.6" ]]; then
+  export LD_LIBRARY_PATH="${python_root}/lib:${LD_LIBRARY_PATH:-}"
 fi
 
 if [[ "${world_size}" -ne "${#device_list[@]}" ]]; then
@@ -36,6 +44,17 @@ fi
 # Fall back to the NAS copy until the optional local cache is present.
 if [[ ! -f "${tracks_path}" ]]; then
   tracks_path="${data_path}/cafe/gt_tracks.pkl"
+fi
+
+if [[ ! -d "${data_path}/cafe" || ! -f "${tracks_path}" ]]; then
+  echo "Café data or gt_tracks.pkl not found under: ${data_path}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${groundtruth}" ]]; then
+  echo "Evaluation ground truth not found: ${groundtruth}" >&2
+  echo "Set GROUNDTRUTH to the official evaluation/gt_tracks.txt before training." >&2
+  exit 1
 fi
 
 if [[ -n "${RESUME_PATH:-}" ]]; then
@@ -73,7 +92,7 @@ CUDA_VISIBLE_DEVICES="${device}" "${python_bin}" -m torch.distributed.run \
   --batch 16 \
   --backbone_lr_scale 0.1 \
   --test_batch 4 \
-  --num_frame 8 \
+  --num_frame 5 \
   "${mae_args[@]}" \
   --device "${device}" \
   --distributed \
