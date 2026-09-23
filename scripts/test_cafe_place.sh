@@ -1,0 +1,1 @@
+python test.py --data_path /share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset/ --split place --model_path cafe_place.pth

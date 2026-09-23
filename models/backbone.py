@@ -1,0 +1,237 @@
+# ------------------------------------------------------------------------
+# Modified from DETR (https://github.com/facebookresearch/detr)
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# ------------------------------------------------------------------------
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+from torchvision.models._utils import IntermediateLayerGetter
+
+from .position_encoding import build_position_encoding
+
+
+class FrozenBatchNorm2d(torch.nn.Module):
+    """
+    BatchNorm2d where the batch statistics and the affine parameters are fixed.
+
+    Copy-paste from torchvision.misc.ops with added eps before rqsrt,
+    without which any other models than torchvision.models.resnet[18,34,50,101]
+    produce nans.
+    """
+
+    def __init__(self, n):
+        super(FrozenBatchNorm2d, self).__init__()
+        self.register_buffer("weight", torch.ones(n))
+        self.register_buffer("bias", torch.zeros(n))
+        self.register_buffer("running_mean", torch.zeros(n))
+        self.register_buffer("running_var", torch.ones(n))
+
+    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
+                              missing_keys, unexpected_keys, error_msgs):
+        num_batches_tracked_key = prefix + 'num_batches_tracked'
+        if num_batches_tracked_key in state_dict:
+            del state_dict[num_batches_tracked_key]
+
+        super(FrozenBatchNorm2d, self)._load_from_state_dict(
+            state_dict, prefix, local_metadata, strict,
+            missing_keys, unexpected_keys, error_msgs)
+
+    def forward(self, x):
+        # move reshapes to the beginning
+        # to make it fuser-friendly
+        w = self.weight.reshape(1, -1, 1, 1)
+        b = self.bias.reshape(1, -1, 1, 1)
+        rv = self.running_var.reshape(1, -1, 1, 1)
+        rm = self.running_mean.reshape(1, -1, 1, 1)
+        eps = 1e-5
+        scale = w * (rv + eps).rsqrt()
+        bias = b - rm * scale
+        return x * scale + bias
+
+
+class ScaledDotProductAttention(nn.Module):
+    """Use PyTorch's memory-efficient attention kernel for DINOv2 blocks.
+
+    DINOv2 falls back to materializing the full attention matrix when xFormers
+    is unavailable.  For the high-resolution multi-frame inputs used here that
+    matrix is prohibitively large.  PyTorch 2.x dispatches this operation to a
+    Flash/memory-efficient CUDA kernel where available, while retaining the
+    original DINOv2 projections and weights.
+    """
+
+    def __init__(self, attention):
+        super().__init__()
+        self.num_heads = attention.num_heads
+        self.qkv = attention.qkv
+        self.attn_drop = attention.attn_drop
+        self.proj = attention.proj
+        self.proj_drop = attention.proj_drop
+
+    def forward(self, x, attn_bias=None):
+        if attn_bias is not None:
+            raise AssertionError("Attention bias requires xFormers in DINOv2")
+
+        batch_size, num_tokens, channels = x.shape
+        head_dim = channels // self.num_heads
+        qkv = self.qkv(x).reshape(batch_size, num_tokens, 3, self.num_heads, head_dim)
+        q, k, v = qkv.permute(2, 0, 3, 1, 4)
+        dropout_p = self.attn_drop.p if self.training else 0.0
+        x = F.scaled_dot_product_attention(q, k, v, dropout_p=dropout_p)
+        x = x.transpose(1, 2).reshape(batch_size, num_tokens, channels)
+        x = self.proj(x)
+        return self.proj_drop(x)
+
+
+class Backbone(nn.Module):
+    def __init__(self, args):
+        super(Backbone, self).__init__()
+
+        if args.frozen_batch_norm:
+            backbone = getattr(torchvision.models, args.backbone)(
+                replace_stride_with_dilation=[False, False, args.dilation],
+                pretrained=True, norm_layer=FrozenBatchNorm2d)
+        else:
+            backbone = getattr(torchvision.models, args.backbone)(
+                replace_stride_with_dilation=[False, False, args.dilation],
+                pretrained=True)
+
+        self.num_frames = args.num_frame
+        self.num_channels = 512 if args.backbone in ('resnet18', 'resnet34') else 2048
+
+        self.body = IntermediateLayerGetter(backbone, return_layers={'layer4': "0"})
+
+    def forward(self, x):
+        x = self.body(x)["0"]
+
+        return x
+
+
+class DinoV2Backbone(nn.Module):
+    """
+    DINOv2 Backbone wrapper that outputs 4D feature maps compatible with existing pipeline.
+    Supports partial unfreezing of the last N transformer blocks.
+    """
+    def __init__(self, args):
+        super().__init__()
+        # 确定模型名称
+        model_name = args.backbone if 'dinov2' in args.backbone else 'dinov2_vits14'
+        print(f"[DinoV2Backbone] Loading model: {model_name}")
+        
+        # Pin a Python 3.8-compatible DINOv2 revision.  Loading ``main`` is
+        # no longer compatible with the project's Python 3.8 environment.
+        self.backbone = torch.hub.load(
+            'facebookresearch/dinov2:b48308a', model_name, skip_validation=True
+        )
+
+        if hasattr(F, 'scaled_dot_product_attention'):
+            for block in self.backbone.blocks:
+                block.attn = ScaledDotProductAttention(block.attn)
+            print("[DinoV2Backbone] Using PyTorch scaled-dot-product attention")
+        
+        # 根据模型型号自动设置 num_channels
+        if 'vits' in model_name:
+            self.num_channels = 384
+        elif 'vitb' in model_name:
+            self.num_channels = 768
+        elif 'vitl' in model_name:
+            self.num_channels = 1024
+        elif 'vitg' in model_name:
+            self.num_channels = 1536
+        else:
+            raise ValueError(f"Unknown DINOv2 model: {model_name}")
+        
+        print(f"[DinoV2Backbone] num_channels = {self.num_channels}")
+        
+        self.patch_size = 14
+        
+        # 冻结/解冻策略
+        freeze_backbone = getattr(args, 'freeze_backbone', False)
+        unfreeze_blocks = getattr(args, 'unfreeze_blocks', 0)  # 默认解冻 0 层
+        
+        if freeze_backbone:
+            # 完全冻结所有参数
+            print("[DinoV2Backbone] Freezing ALL backbone parameters")
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+        elif unfreeze_blocks > 0:
+            # 部分解冻：先冻结所有，再解冻最后 N 层 blocks
+            print(f"[DinoV2Backbone] Partial unfreezing: freezing all, then unfreezing last {unfreeze_blocks} blocks")
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+            
+            # 解冻最后 unfreeze_blocks 个 transformer blocks
+            total_blocks = len(self.backbone.blocks)
+            for i, block in enumerate(self.backbone.blocks):
+                if i >= total_blocks - unfreeze_blocks:
+                    for param in block.parameters():
+                        param.requires_grad = True
+                    print(f"  - Unfreezing block {i}")
+            
+            # 解冻最终的 Norm 层
+            if hasattr(self.backbone, 'norm'):
+                for param in self.backbone.norm.parameters():
+                    param.requires_grad = True
+                print("  - Unfreezing final norm layer")
+        else:
+            # 全部解冻（全参数微调）
+            print("[DinoV2Backbone] All backbone parameters are TRAINABLE (full fine-tuning)")
+
+    def forward(self, x):
+        """
+        Args:
+            x: [B*T, 3, H, W]
+        Returns:
+            feature_map: [B*T, C, H/14, W/14]
+        """
+        b, c, h, w = x.shape
+        p = self.patch_size
+        
+        # 尺寸对齐：确保 H, W 是 patch_size 的倍数
+        if h % p != 0 or w % p != 0:
+            new_h = (h // p) * p
+            new_w = (w // p) * p
+            x = F.interpolate(x, size=(new_h, new_w), mode='bilinear', align_corners=False)
+            h, w = new_h, new_w
+        
+        # DINOv2 前向传播
+        output = self.backbone.forward_features(x)
+        patch_tokens = output['x_norm_patchtokens']  # [B*T, N_patches, D]
+        
+        # Reshape 为 2D 特征图: [B*T, H_grid*W_grid, D] -> [B*T, D, H_grid, W_grid]
+        h_grid = h // p
+        w_grid = w // p
+        feature_map = patch_tokens.reshape(b, h_grid, w_grid, self.num_channels).permute(0, 3, 1, 2)
+        
+        return feature_map
+
+
+class Joiner(nn.Sequential):
+    def __init__(self, backbone, position_embedding):
+        super().__init__(backbone, position_embedding)
+
+    def forward(self, x):
+        bs, t, _, h, w = x.shape
+        x = x.reshape(bs * t, 3, h, w)
+
+        features = self[0](x)
+        _, c, oh, ow = features.shape
+
+        pos = self[1](features).to(x.dtype)
+
+        return features, pos
+
+
+def  build_backbone(args):
+    pos_embed = build_position_encoding(args)
+    
+    # 根据 backbone 名称选择不同的 Backbone
+    if 'dinov2' in args.backbone:
+        backbone = DinoV2Backbone(args)
+    else:
+        backbone = Backbone(args)
+    
+    model = Joiner(backbone, pos_embed)
+    model.num_channels = backbone.num_channels
+    return model

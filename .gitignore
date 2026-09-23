@@ -1,0 +1,32 @@
+# 忽略所有__pycache__目录
+__pycache__/
+# 忽略所有.pyc文件
+*.pyc
+# 忽略pth
+*.pth
+# 忽略cafe_checkpoints.zip  
+cafe_checkpoints.zip
+# 忽略gt_tracks.txt
+gt_tracks.txt
+
+# 忽略videomae_features文件夹
+videomae_features/
+
+# 忽略outputs文件夹
+outputs/
+
+# 忽略auto_gpu_runner.py文件
+auto_gpu_runner.py
+
+# 忽略videomae_features_giant文件夹
+videomae_features_giant/
+
+# 忽略.vscode文件夹
+.vscode/
+
+# Local cache of NAS-only dataset assets.
+.local_data/
+
+# Generated training artifacts; checkpoints can be hundreds of megabytes each.
+result/
+*.log
