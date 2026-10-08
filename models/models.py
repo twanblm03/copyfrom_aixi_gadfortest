@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from roi_align.roi_align import RoIAlign
+from torchvision.ops import RoIAlign
 
 from .backbone import build_backbone
 from .group_transformer import build_group_transformer
@@ -23,7 +23,17 @@ class GADTR(nn.Module):
 
         # RoI Align
         self.crop_size = args.crop_size
-        self.roi_align = RoIAlign(crop_height=self.crop_size, crop_width=self.crop_size)
+        # The upstream project used longcw/RoIAlign.pytorch, whose extension is
+        # not compatible with the PyTorch version used in this workspace.
+        # Keep longcw/RoIAlign.pytorch's one-center-sample-per-bin contract
+        # through torchvision's native implementation. The explicit validity
+        # mask below also restores longcw's whole-sample zero extrapolation.
+        self.roi_align = RoIAlign(
+            output_size=(self.crop_size, self.crop_size),
+            spatial_scale=1.0,
+            sampling_ratio=1,
+            aligned=True,
+        )
         self.fc_emb = nn.Linear(self.crop_size*self.crop_size*self.backbone.num_channels, self.hidden_dim)
         self.drop_emb = nn.Dropout(p=args.drop_rate)
 
@@ -115,7 +125,25 @@ class GADTR(nn.Module):
         boxes_idx_flat.requires_grad = False
 
         # extract actor features
-        actor_features = self.roi_align(features, boxes_flat, boxes_idx_flat)
+        boxes_list = [boxes_flat[boxes_idx_flat == i] for i in range(bs * t)]
+        actor_features = self.roi_align(features, boxes_list)
+
+        # longcw samples bin centers at
+        #   start + (bin_index + 0.5) * bin_size - 0.5
+        # and returns the extrapolation value for any center outside the
+        # feature map. torchvision interpolates close-to-boundary samples, so
+        # mask those positions explicitly to preserve the upstream behavior.
+        bin_index = torch.arange(
+            self.crop_size, dtype=boxes_flat.dtype, device=boxes_flat.device)
+        bin_x = (boxes_flat[:, 2] - boxes_flat[:, 0]) / self.crop_size
+        bin_y = (boxes_flat[:, 3] - boxes_flat[:, 1]) / self.crop_size
+        sample_x = boxes_flat[:, 0, None] + (bin_index[None] + 0.5) * bin_x[:, None] - 0.5
+        sample_y = boxes_flat[:, 1, None] + (bin_index[None] + 0.5) * bin_y[:, None] - 0.5
+        valid_x = (sample_x >= 0) & (sample_x <= ow - 1)
+        valid_y = (sample_y >= 0) & (sample_y <= oh - 1)
+        valid_samples = valid_y[:, :, None] & valid_x[:, None, :]
+        actor_features = actor_features * valid_samples[:, None].to(actor_features.dtype)
+
         actor_features = torch.reshape(actor_features, (bs * t * n, -1))
         actor_features = self.fc_emb(actor_features)
         actor_features = F.relu(actor_features)

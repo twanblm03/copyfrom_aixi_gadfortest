@@ -154,6 +154,8 @@ class CafeDataset(data.Dataset):
         self.num_frame = args.num_frame
         self.num_class = args.num_class
         self.is_training = is_training
+        if self.num_frame < 1:
+            raise ValueError(f'num_frame must be at least 1, got {self.num_frame}')
         self.transform = transforms.Compose([
             transforms.Resize((args.image_height, args.image_width)),
             transforms.ToTensor(),
@@ -181,32 +183,45 @@ class CafeDataset(data.Dataset):
 
     def select_frames(self, frame):
         annotation = self.anns[frame]
-        key_frame = annotation['key_frame']
-        total_frames = annotation['num_frames']
-        interval = annotation['interval']
+        total_frames = int(annotation['num_frames'])
+        if total_frames < 1:
+            raise ValueError(f'Clip {frame} must contain at least one frame, got {total_frames}')
 
         if self.is_training:
-            # random sampling
             if self.random_sampling:
-                sample_frames = random.sample(range(total_frames), self.num_frame)
+                if total_frames >= self.num_frame:
+                    sample_frames = random.sample(range(total_frames), self.num_frame)
+                else:
+                    sample_frames = random.choices(range(total_frames), k=self.num_frame)
                 sample_frames.sort()
-            # segment-based sampling
-            else:                
-                segment_duration = total_frames // self.num_frame
-                sample_frames = np.multiply(list(range(self.num_frame)), segment_duration) + np.random.randint(
-                    segment_duration, size=self.num_frame)
-        else:
-            # random sampling
-            if self.random_sampling:
-                sample_frames = random.sample(range(total_frames), self.num_frame)
-                sample_frames.sort()
-            # segment-based sampling
             else:
-                segment_duration = total_frames // self.num_frame
-                sample_frames = np.multiply(list(range(self.num_frame)), segment_duration) + np.random.randint(
-                    segment_duration, size=self.num_frame)
+                sample_frames = self._sample_random_segment_frames(total_frames)
+        else:
+            # A fixed checkpoint must be evaluated on the same frames every
+            # time. Segment centers preserve the paper's segment-based temporal
+            # coverage while removing evaluation RNG noise.
+            sample_frames = self._sample_segment_centers(total_frames)
 
         return [(frame, int(fid * annotation['interval'])) for fid in sample_frames]
+
+    def _sample_random_segment_frames(self, total_frames):
+        segment_edges = np.linspace(0, total_frames, self.num_frame + 1)
+        sample_frames = []
+        for start, end in zip(segment_edges[:-1], segment_edges[1:]):
+            first = int(np.floor(start))
+            stop = int(np.floor(end))
+            if stop > first:
+                fid = np.random.randint(first, stop)
+            else:
+                fid = int(np.floor((start + end) / 2))
+            sample_frames.append(min(fid, total_frames - 1))
+        return sample_frames
+
+    def _sample_segment_centers(self, total_frames):
+        segment_edges = np.linspace(0, total_frames, self.num_frame + 1)
+        centers = (segment_edges[:-1] + segment_edges[1:]) / 2
+        sample_frames = np.floor(centers).astype(np.int64)
+        return np.minimum(sample_frames, total_frames - 1).tolist()
 
     def load_samples(self, frames):
         images, boxes, gt_boxes, actions, activities, members, membership = [], [], [], [], [], [], []

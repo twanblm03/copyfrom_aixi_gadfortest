@@ -19,13 +19,20 @@ import util.logger as loggers
 from dataloader.dataloader import read_dataset
 import evaluation.cafe_eval as evaluation
 
-parser = argparse.ArgumentParser(description='Group Activity Detection train code', add_help=False)
+parser = argparse.ArgumentParser(description='Group Activity Detection evaluation code')
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
-parser.add_argument('--val_mode', action='store_true')
+protocol_group = parser.add_mutually_exclusive_group()
+protocol_group.add_argument('--val_mode', dest='val_mode', action='store_true',
+                            help='evaluate the official validation split (default)')
+protocol_group.add_argument('--final_test', dest='val_mode', action='store_false',
+                            help='evaluate the official test split')
+parser.set_defaults(val_mode=True)
 parser.add_argument('--split', default='place', type=str, help='dataset split. place or view')
 parser.add_argument('--data_path', default='../Dataset/', type=str, help='data path')
+parser.add_argument('--tracks_path', default='', type=str,
+                    help='optional gt_tracks.pkl path; defaults to <data_path>/cafe/gt_tracks.pkl')
 parser.add_argument('--image_width', default=1280, type=int, help='Image width to resize')
 parser.add_argument('--image_height', default=720, type=int, help='Image height to resize')
 parser.add_argument('--random_sampling', action='store_true', help='random sampling strategy')
@@ -79,7 +86,7 @@ parser.add_argument('--test_batch', default=16, type=int, help='Test batch size'
 parser.add_argument('--drop_rate', default=0.1, type=float, help='Dropout rate')
 # GPU
 parser.add_argument('--device', default="0, 1", type=str, help='GPU device')
-parser.add_argument('--distributed', action='store_true')
+parser.add_argument('--num_workers', default=4, type=int, help='DataLoader worker count')
 
 # Load model
 parser.add_argument('--model_path', default="", type=str, help='pretrained model path')
@@ -88,10 +95,12 @@ parser.add_argument('--model_path', default="", type=str, help='pretrained model
 parser.add_argument('--result_path', default="./outputs/")
 
 # Evaluation
-parser.add_argument('--groundtruth', default='./evaluation/gt_tracks.txt', type=argparse.FileType("r"))
-parser.add_argument('--labelmap', default='./label_map/group_action_list.pbtxt', type=argparse.FileType("r"))
+parser.add_argument('--groundtruth', default='./evaluation/gt_tracks.txt', type=str)
+parser.add_argument('--labelmap', default='./label_map/group_action_list.pbtxt', type=str)
 parser.add_argument('--giou_thresh', default=1.0, type=float)
 parser.add_argument('--eval_type', default="gt_base", type=str, help='gt_based or detection_based')
+parser.add_argument('--eval_image_width', default=1280, type=int)
+parser.add_argument('--eval_image_height', default=720, type=int)
 
 args = parser.parse_args()
 path = None
@@ -101,16 +110,42 @@ SEQS_CAFE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 
 ACTIVITIES = ['Queueing', 'Ordering', 'Drinking', 'Working', 'Fighting', 'Selfie', 'Individual', 'No']
 
 
+def load_model_checkpoint(model, model_path):
+    if not model_path:
+        raise ValueError('--model_path is required')
+    checkpoint = torch.load(model_path, map_location='cpu')
+    state_dict = checkpoint.get('state_dict', checkpoint)
+    model_state = model.state_dict()
+    compatible = {}
+    for key, value in state_dict.items():
+        if key in model_state:
+            compatible[key] = value
+        elif key.startswith('module.') and key[len('module.'):] in model_state:
+            compatible[key[len('module.'):]] = value
+        elif ('module.' + key) in model_state:
+            compatible['module.' + key] = value
+        else:
+            compatible[key] = value
+    model.load_state_dict(compatible, strict=True)
+
+
 def main():
     global args, path
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
 
+    if not torch.cuda.is_available():
+        raise RuntimeError('B0-repro evaluation requires CUDA')
+    if not os.path.isfile(args.groundtruth):
+        raise FileNotFoundError('evaluation ground truth not found: %s' % args.groundtruth)
+    if not os.path.isfile(args.labelmap):
+        raise FileNotFoundError('label map not found: %s' % args.labelmap)
+
     time_str = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
     exp_name = '[%s]_GAD_<%s>' % (args.dataset, time_str)
 
-    path = args.result_path + exp_name
+    path = os.path.join(args.result_path, exp_name)
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -124,22 +159,20 @@ def main():
     torch.backends.cudnn.benchmark = False
 
     _, test_set = read_dataset(args)
-    sampler_test = data.RandomSampler(test_set)
+    sampler_test = data.SequentialSampler(test_set)
 
     test_loader = data.DataLoader(test_set, args.test_batch, sampler=sampler_test, drop_last=False,
-                                  collate_fn=collate_fn, num_workers=4, pin_memory=True)
+                                  collate_fn=collate_fn, num_workers=args.num_workers, pin_memory=True)
 
     model, criterion = build_model(args)
-    model = torch.nn.DataParallel(model).cuda()
+    model = model.cuda()
+    device_ids = [device_id.strip() for device_id in args.device.split(',') if device_id.strip()]
+    if len(device_ids) > 1:
+        model = torch.nn.DataParallel(model)
+    load_model_checkpoint(model, args.model_path)
 
-    pretrained_dict = torch.load(args.model_path)['state_dict']
-    new_state_dict = model.state_dict()
-    for k, v in pretrained_dict.items():
-        if k in new_state_dict:
-            new_state_dict.update({k:v})
-
-    model.load_state_dict(new_state_dict)
-
+    args.groundtruth = open(args.groundtruth, 'r')
+    args.labelmap = open(args.labelmap, 'r')
     metrics = evaluation.GAD_Evaluation(args)
 
     test_log, result = validate(test_loader, model, criterion, metrics)
@@ -159,13 +192,14 @@ def validate(test_loader, model, criterion, metrics):
     print_freq = len(test_loader)
     name_to_vid = {name: i + 1 for i, name in enumerate(SEQS_CAFE)}
     file_path = path + '/pred_group_test_%s.txt' % args.split
+    open(file_path, 'w').close()
 
     for i, (images, targets, infos) in enumerate(metric_logger.log_every(test_loader, print_freq, header)):
         images = images.cuda()  # [B, T, 3, H, W]
         targets = [{k: v.cuda() for k, v in t.items()} for t in targets]
 
         boxes = torch.stack([t['boxes'] for t in targets])
-        dummy_mask = torch.stack([t['actions'] == args.num_class + 1 for t in targets]).squeeze()
+        dummy_mask = torch.stack([t['actions'] == args.num_class + 1 for t in targets]).squeeze(1)
 
         # compute output
         outputs = model(images, boxes, dummy_mask)
@@ -191,8 +225,8 @@ def validate(test_loader, model, criterion, metrics):
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
 
-    detections = open(file_path, "r")
-    result = metrics.evaluate(detections)
+    with open(file_path, "r") as detections:
+        result = metrics.evaluate(detections)
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}, result
 
@@ -200,7 +234,7 @@ def validate(test_loader, model, criterion, metrics):
 def make_txt(boxes, infos, outputs, name_to_vid, file_path):
     for b in range(boxes.shape[0]):
         for t in range(boxes.shape[1]):
-            image_w, image_h = args.image_width, args.image_height
+            image_w, image_h = args.eval_image_width, args.eval_image_height
 
             pred_group_actions = outputs['pred_activities'][b]
             pred_group_actions = F.softmax(pred_group_actions, dim=1)

@@ -4,6 +4,7 @@
 # ------------------------------------------------------------------------
 from .cafe import *
 
+import os
 import pickle
 
 TRAIN_CAFE_P = ['1', '2', '3', '4', '9', '10', '11', '12', '17', '18', '19', '20', '21', '22', '23', '24']
@@ -17,7 +18,7 @@ TEST_CAFE_V = ['4', '8', '12', '16', '20', '24']
 
 def read_dataset(args):
     if args.dataset == 'cafe':
-        data_path = args.data_path + 'cafe'
+        data_path = os.path.join(args.data_path, 'cafe')
 
         # split-by-place setting
         if args.split == 'place':
@@ -46,7 +47,9 @@ def read_dataset(args):
             test_frames = cafe_all_frames(test_data)
 
         # actor tracklets for all frames
-        all_tracks = pickle.load(open(data_path + '/gt_tracks.pkl', 'rb'))
+        tracks_path = getattr(args, 'tracks_path', '') or os.path.join(data_path, 'gt_tracks.pkl')
+        with open(tracks_path, 'rb') as tracks_file:
+            all_tracks = pickle.load(tracks_file)
 
         train_set = CafeDataset(train_frames, train_data, all_tracks, data_path, args, is_training=True)
         test_set = CafeDataset(test_frames, test_data, all_tracks, data_path, args, is_training=False)
