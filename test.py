@@ -19,24 +19,33 @@ import util.logger as loggers
 from dataloader.dataloader import read_dataset
 import evaluation.cafe_eval as evaluation
 
-parser = argparse.ArgumentParser(description='Group Activity Detection train code', add_help=False)
+parser = argparse.ArgumentParser(description='Group Activity Detection test code')
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
 parser.add_argument('--val_mode', action='store_true')
 parser.add_argument('--split', default='place', type=str, help='dataset split. place or view')
 parser.add_argument('--data_path', default='../Dataset/', type=str, help='data path')
+parser.add_argument('--tracks_path', default='', type=str,
+                    help='optional local path to cafe gt_tracks.pkl; defaults to <data_path>/cafe/gt_tracks.pkl')
 parser.add_argument('--image_width', default=1120, type=int, help='Image width to resize (1120 for DINOv2, 1280 for ResNet)')
 parser.add_argument('--image_height', default=630, type=int, help='Image height to resize (630 for DINOv2, 720 for ResNet)')
 parser.add_argument('--random_sampling', action='store_true', help='random sampling strategy')
 parser.add_argument('--num_frame', default=5, type=int, help='number of frames for each clip')
 parser.add_argument('--num_class', default=6, type=int, help='number of activity classes')
+parser.add_argument('--no_mae', action='store_true', help='disable VideoMAE enhancement')
+parser.add_argument('--mae_version', default='v2', type=str, choices=['v1', 'v2'],
+                    help='VideoMAE version: v1 (768) or v2 (1408)')
+parser.add_argument('--videomae_feats_path', default='./videomae_features_giant', type=str,
+                    help='path to videomae features')
 
 # Backbone parameters
 parser.add_argument('--backbone', default='resnet18', type=str, help='feature extraction backbone (resnet18, resnet50, dinov2_vits14, dinov2_vitb14, dinov2_vitl14, dinov2_vitg14)')
 parser.add_argument('--dilation', action='store_true', help='use dilation or not')
 parser.add_argument('--frozen_batch_norm', action='store_true', help='use frozen batch normalization')
-parser.add_argument('--freeze_backbone', action='store_true', help='freeze backbone parameters (for DINOv2)')
+parser.add_argument('--freeze_backbone', action='store_true', help='freeze ALL backbone parameters (for DINOv2)')
+parser.add_argument('--unfreeze_blocks', default=0, type=int,
+                    help='number of last transformer blocks to unfreeze (for DINOv2 partial finetuning)')
 parser.add_argument('--hidden_dim', default=256, type=int, help='transformer channel dimension')
 
 # RoI Align parameters
@@ -52,6 +61,15 @@ parser.add_argument('--num_group_tokens', default=12, type=int, help='number of 
 parser.add_argument('--aux_loss', action='store_true')
 parser.add_argument('--group_threshold', default=0.5, type=float, help='post processing threshold')
 parser.add_argument('--distance_threshold', default=0.2, type=float, help='distance mask threshold')
+
+# HOI Graph
+parser.add_argument('--hoi_nheads', default=4, type=int, help='number of heads for HOI graph')
+parser.add_argument('--hoi_topk', default=0, type=int, help='topk for HOI graph sparsity (0 for full)')
+
+# Temporal Modeling
+parser.add_argument('--temporal_layers', default=3, type=int, help='number of temporal attention layers')
+parser.add_argument('--tcn_kernel_size', default=3, type=int, help='kernel size for TCN')
+parser.add_argument('--tcn_dropout', default=0.1, type=float, help='dropout for TCN')
 
 # Loss option
 parser.add_argument('--temperature', default=0.2, type=float, help='consistency loss temperature')
@@ -104,11 +122,40 @@ SEQS_CAFE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 
 ACTIVITIES = ['Queueing', 'Ordering', 'Drinking', 'Working', 'Fighting', 'Selfie', 'Individual', 'No']
 
 
+def load_model_checkpoint(model, model_path):
+    """Load checkpoints saved by either a single GPU or DataParallel/DDP."""
+    if not model_path:
+        raise ValueError('--model_path is required for evaluation')
+
+    checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+    state_dict = checkpoint.get('state_dict', checkpoint)
+    if not hasattr(state_dict, 'items'):
+        raise TypeError(f'Checkpoint {model_path} does not contain a valid state dict')
+
+    model_keys = set(model.state_dict().keys())
+    compatible_state_dict = {}
+    for key, value in state_dict.items():
+        if key in model_keys:
+            compatible_key = key
+        elif key.startswith('module.') and key[len('module.'):] in model_keys:
+            compatible_key = key[len('module.'):]
+        elif f'module.{key}' in model_keys:
+            compatible_key = f'module.{key}'
+        else:
+            compatible_key = key
+        compatible_state_dict[compatible_key] = value
+
+    model.load_state_dict(compatible_state_dict, strict=True)
+
+
 def main():
     global args, path
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
+
+    args.use_mae = not args.no_mae
+    args.mae_dim = (1408 if args.mae_version == 'v2' else 768) if args.use_mae else 0
 
     time_str = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
     exp_name = '[%s]_GAD_[%s]' % (args.dataset, time_str)
@@ -122,6 +169,8 @@ def main():
     print(f"Output path: {path}")
     print(f"Dataset: {args.dataset}, Split: {args.split}")
     print(f"Model path: {args.model_path}")
+    print(f"VideoMAE: {'enabled' if args.use_mae else 'disabled'}"
+          f"{f' ({args.mae_version}, dim={args.mae_dim})' if args.use_mae else ''}")
     print("=" * 60)
 
     # set random seed
@@ -138,7 +187,7 @@ def main():
     _, test_set = read_dataset(args)
     print(f"    Dataset loaded: {len(test_set)} test samples")
     
-    sampler_test = data.RandomSampler(test_set)
+    sampler_test = data.SequentialSampler(test_set)
 
     print("[3/6] Creating data loader...")
     test_loader = data.DataLoader(test_set, args.test_batch, sampler=sampler_test, drop_last=False,
@@ -147,17 +196,17 @@ def main():
 
     print("[4/6] Building model...")
     model, criterion = build_model(args)
-    model = torch.nn.DataParallel(model).cuda()
+    model = model.cuda()
+    device_ids = [device_id.strip() for device_id in args.device.split(',') if device_id.strip()]
+    if len(device_ids) > 1:
+        model = torch.nn.DataParallel(model)
+        print(f"    Using DataParallel on {len(device_ids)} GPUs")
+    else:
+        print("    Using a single GPU")
     print("    Model built and moved to GPU")
 
     print("[5/6] Loading model weights...")
-    pretrained_dict = torch.load(args.model_path, weights_only=False)['state_dict']
-    new_state_dict = model.state_dict()
-    for k, v in pretrained_dict.items():
-        if k in new_state_dict:
-            new_state_dict.update({k:v})
-
-    model.load_state_dict(new_state_dict)
+    load_model_checkpoint(model, args.model_path)
     print(f"    Model weights loaded from {args.model_path}")
 
     print("[6/6] Initializing evaluation metrics...")
@@ -189,6 +238,8 @@ def validate(test_loader, model, criterion, metrics):
     print_freq = len(test_loader)
     name_to_vid = {name: i + 1 for i, name in enumerate(SEQS_CAFE)}
     file_path = path + '/pred_group_test_%s.txt' % args.split
+    # Do not append to predictions left by a previous evaluation in the same path.
+    open(file_path, 'w').close()
     
     print(f"Processing {len(test_loader)} batches...")
     print(f"Saving predictions to: {file_path}")
@@ -201,10 +252,14 @@ def validate(test_loader, model, criterion, metrics):
         targets = [{k: v.cuda() for k, v in t.items()} for t in targets]
 
         boxes = torch.stack([t['boxes'] for t in targets])
-        dummy_mask = torch.stack([t['actions'] == args.num_class + 1 for t in targets]).squeeze()
+        dummy_mask = torch.stack([t['actions'] == args.num_class + 1 for t in targets]).squeeze(1)
+
+        mae_feats = None
+        if args.use_mae and 'mae_feats' in targets[0]:
+            mae_feats = torch.stack([t['mae_feats'] for t in targets])
 
         # compute output
-        outputs = model(images, boxes, dummy_mask)
+        outputs = model(images, boxes, dummy_mask, mae_feats)
 
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict

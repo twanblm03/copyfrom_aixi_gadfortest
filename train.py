@@ -12,6 +12,7 @@ import sys
 import copy
 import time
 import random
+import re
 import numpy as np
 import argparse
 import gc
@@ -28,7 +29,14 @@ parser = argparse.ArgumentParser(description='Group Activity Detection train cod
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
-parser.add_argument('--val_mode', action='store_true')
+protocol_group = parser.add_mutually_exclusive_group()
+protocol_group.add_argument(
+    '--val_mode', dest='val_mode', action='store_true',
+    help='development protocol: train on TRAIN and evaluate/select checkpoints on VAL (default)')
+protocol_group.add_argument(
+    '--final_test', dest='val_mode', action='store_false',
+    help='final-report protocol: train on TRAIN+VAL and evaluate TEST once at the final epoch')
+parser.set_defaults(val_mode=True)
 parser.add_argument('--split', default='place', type=str, help='dataset split. place or view')
 parser.add_argument('--data_path', default='/share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset/', type=str, help='data path')
 parser.add_argument('--tracks_path', default='', type=str,
@@ -101,6 +109,24 @@ def save_checkpoint_safely(state, result_path, attempts=3, retry_delay_seconds=5
                 attempt, attempts, error, retry_delay_seconds), flush=True)
             time.sleep(retry_delay_seconds)
 
+
+def remove_older_checkpoints(save_path, retained_path):
+    """Retain only the checkpoint just written for the current experiment."""
+    retained_path = os.path.abspath(retained_path)
+    removed_paths = []
+    for filename in os.listdir(save_path):
+        epoch_number = filename[5:-4]
+        if not (filename.startswith('epoch') and filename.endswith('.pth') and epoch_number.isdigit()):
+            continue
+
+        checkpoint_path = os.path.abspath(os.path.join(save_path, filename))
+        if checkpoint_path == retained_path:
+            continue
+
+        os.remove(checkpoint_path)
+        removed_paths.append(checkpoint_path)
+    return removed_paths
+
 # Loss coefficients (Individual)
 parser.add_argument('--ce_loss_coef', default=1, type=float)
 parser.add_argument('--eos_coef', default=1, type=float,
@@ -121,7 +147,11 @@ parser.add_argument('--set_cost_membership', default=1, type=float,
 # Training parameters
 parser.add_argument('--random_seed', default=1, type=int, help='random seed for reproduction')
 parser.add_argument('--epochs', default=30, type=int, help='Max epochs')
-parser.add_argument('--test_freq', default=1, type=int, help='print frequency')
+parser.add_argument('--test_freq', default=1, type=int,
+                    help='validation frequency in epochs; ignored with --final_test')
+parser.add_argument('--selection_metric', default='group_mAP_1.0', type=str,
+                    choices=['group_mAP_1.0', 'group_mAP_0.5', 'loss'],
+                    help='validation metric used to save best_val.pth (ignored with --final_test)')
 parser.add_argument('--batch', default=16, type=int, help='Batch size')
 parser.add_argument('--micro_batch', default=0, type=int,
                     help='micro-batch size for gradient accumulation (0 disables accumulation)')
@@ -134,6 +164,20 @@ parser.add_argument('--warmup_epochs', default=5, type=int,
                     help='number of linear warmup epochs (Café paper: 5)')
 parser.add_argument('--weight_decay', default=0.0, type=float,
                     help='L2 penalty for Adam (Café paper uses 0)')
+parser.add_argument('--optimizer', default='adam', choices=['adam', 'adamw'],
+                    help='optimizer implementation; default preserves the existing reproduction setup')
+parser.add_argument('--lr_schedule', default='linear', choices=['linear', 'cyclic'],
+                    help='learning-rate schedule; default preserves the existing reproduction setup')
+parser.add_argument('--lr_step', default=4, type=int,
+                    help='CyclicLR warm-up length in epochs')
+parser.add_argument('--lr_step_down', default=25, type=int,
+                    help='CyclicLR decay length in epochs')
+parser.add_argument('--max_train_steps', default=0, type=int,
+                    help='stop each epoch after this many optimizer steps (0 trains the full epoch)')
+parser.add_argument('--report_peak_memory', action='store_true',
+                    help='record per-rank PyTorch peak CUDA memory after each epoch')
+parser.add_argument('--log_interval', default=10, type=int,
+                    help='write training progress every N optimizer steps (0 logs only at epoch end)')
 parser.add_argument('--drop_rate', default=0.1, type=float, help='Dropout rate')
 parser.add_argument('--gradient_clipping', action='store_true', help='use gradient clipping')
 parser.add_argument('--max_norm', default=1.0, type=float, help='gradient clipping max norm')
@@ -149,6 +193,10 @@ parser.add_argument('--model_path', default="", type=str, help='pretrained model
 
 # Visualization
 parser.add_argument('--result_path', default="./outputs/")
+parser.add_argument('--checkpoint_root', default='', type=str,
+                    help='optional root for checkpoints; each experiment is saved in a separate subdirectory')
+parser.add_argument('--experiment_tag', default='', type=str,
+                    help='optional safe label added to the timestamped experiment directory')
 
 # Evaluation
 parser.add_argument('--groundtruth', default='./evaluation/gt_tracks.txt', type=argparse.FileType("r"))
@@ -206,6 +254,15 @@ def main():
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
 
+    # Development is deliberately the safe default: model selection happens
+    # on VAL. Access to TEST requires the explicit --final_test flag and is
+    # evaluated only once, after the final training epoch.
+    args.protocol = 'development' if args.val_mode else 'final_test'
+    args.eval_split = 'val' if args.val_mode else 'test'
+    if args.experiment_tag and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,99}', args.experiment_tag):
+        raise ValueError(
+            '--experiment_tag must be 1-100 characters using only ASCII letters, numbers, dot, dash, or underscore')
+
     if args.distributed:
         args.local_rank = int(os.environ.get('LOCAL_RANK', args.local_rank))
         if args.local_rank < 0:
@@ -220,13 +277,27 @@ def main():
     else:
         time_str = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
 
-    exp_name = '[%s]_GAD_[%s]' % (args.dataset, time_str)
+    tag_component = '_[%s]' % args.experiment_tag if args.experiment_tag else ''
+    exp_name = '[%s]_GAD%s_[%s]' % (args.dataset, tag_component, time_str)
     save_path = './result/%s' % exp_name
+    checkpoint_dir = (os.path.join(args.checkpoint_root, exp_name)
+                      if args.checkpoint_root else save_path)
 
-    if is_main_process() and not os.path.exists(save_path):
-        os.makedirs(save_path)
+    if is_main_process():
+        os.makedirs(save_path, exist_ok=True)
+        os.makedirs(checkpoint_dir, exist_ok=True)
     if args.distributed:
         dist.barrier()
+
+    if is_main_process():
+        if args.val_mode:
+            print_log(save_path, 'Protocol: DEVELOPMENT (TRAIN -> VAL)')
+            selection_direction = 'minimize' if args.selection_metric == 'loss' else 'maximize'
+            print_log(save_path, 'Checkpoint selection: %s validation %s' %
+                      (selection_direction, args.selection_metric))
+        else:
+            print_log(save_path, 'Protocol: FINAL TEST (TRAIN+VAL -> TEST)')
+            print_log(save_path, 'TEST will run once at the final epoch and will not select a checkpoint.')
 
     # Logic for use_mae
     args.use_mae = not args.no_mae
@@ -271,7 +342,7 @@ def main():
         train_batch_size = args.batch // dist.get_world_size()
     else:
         sampler_train = data.RandomSampler(train_set)
-        sampler_test = data.RandomSampler(test_set)
+        sampler_test = data.SequentialSampler(test_set)
         train_batch_size = args.batch
 
     batch_sampler_train = data.BatchSampler(sampler_train, train_batch_size, drop_last=True)
@@ -354,7 +425,13 @@ def main():
         else:
             head_params.append(param)
     
-    if args.warmup_epochs < 1 or args.warmup_epochs > args.epochs:
+    if args.max_train_steps < 0:
+        raise ValueError('--max_train_steps must be non-negative')
+    if args.log_interval < 0:
+        raise ValueError('--log_interval must be non-negative')
+    if args.test_freq < 1:
+        raise ValueError('--test_freq must be positive')
+    if args.lr_schedule == 'linear' and (args.warmup_epochs < 1 or args.warmup_epochs > args.epochs):
         raise ValueError('--warmup_epochs must be in [1, --epochs]')
     if args.lr <= 0 or args.max_lr <= 0 or args.lr > args.max_lr:
         raise ValueError('learning rates must be positive and satisfy --lr <= --max_lr')
@@ -364,21 +441,36 @@ def main():
     
     if is_main_process():
         print_log(save_path, '--------------------Learning Rate Configuration--------------------')
-        print_log(save_path, 'Schedule: linear warmup, then linear decay (Café paper)')
-        print_log(save_path, f'Head LR: {args.lr} -> {args.max_lr} over {args.warmup_epochs} epochs')
-        print_log(save_path, f'Backbone LR: {backbone_initial_lr} -> {backbone_max_lr} '
-                             f'(scale: {args.backbone_lr_scale})')
+        print_log(save_path, f'Optimizer: {args.optimizer.upper()}')
+        if args.lr_schedule == 'linear':
+            print_log(save_path, 'Schedule: linear warmup, then linear decay')
+            print_log(save_path, f'Head LR: {args.lr} -> {args.max_lr} over {args.warmup_epochs} epochs')
+            print_log(save_path, f'Backbone LR: {backbone_initial_lr} -> {backbone_max_lr} '
+                                 f'(scale: {args.backbone_lr_scale})')
+        else:
+            print_log(save_path, f'Schedule: CyclicLR (up={args.lr_step}, down={args.lr_step_down})')
+            print_log(save_path, f'Head LR: {args.lr} -> {args.max_lr}')
+            print_log(save_path, f'Backbone LR: {backbone_initial_lr} -> {backbone_max_lr} '
+                                 f'(scale: {args.backbone_lr_scale})')
         print_log(save_path, f'Backbone params count: {sum(p.numel() for p in backbone_params):,}')
         print_log(save_path, f'Head params count: {sum(p.numel() for p in head_params):,}')
+        print_log(save_path, f'Checkpoint directory: {checkpoint_dir}')
     
     # 构建参数组
-    param_groups = [
-        {'params': head_params, 'lr': args.max_lr},
-        {'params': backbone_params, 'lr': backbone_max_lr}
-    ]
-    
-    optimizer = torch.optim.Adam(param_groups, betas=(0.9, 0.999), eps=1e-8,
-                                 weight_decay=args.weight_decay)
+    if args.lr_schedule == 'linear':
+        param_groups = [
+            {'params': head_params, 'lr': args.max_lr},
+            {'params': backbone_params, 'lr': backbone_max_lr}
+        ]
+    else:
+        param_groups = [
+            {'params': head_params, 'lr': args.lr},
+            {'params': backbone_params, 'lr': backbone_initial_lr}
+        ]
+
+    optimizer_class = torch.optim.AdamW if args.optimizer == 'adamw' else torch.optim.Adam
+    optimizer = optimizer_class(param_groups, betas=(0.9, 0.999), eps=1e-8,
+                                weight_decay=args.weight_decay)
 
     def paper_lr_factor(epoch_index):
         """Café schedule: 1e-5 -> 1e-4 in 5 epochs, then decay to zero."""
@@ -393,9 +485,32 @@ def main():
             return 1.0
         return max(0.0, (args.epochs - (epoch_index + 1)) / decay_epochs)
 
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer, lr_lambda=[paper_lr_factor, paper_lr_factor]
-    )
+    if args.lr_schedule == 'linear':
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer, lr_lambda=[paper_lr_factor, paper_lr_factor]
+        )
+    else:
+        scheduler = torch.optim.lr_scheduler.CyclicLR(
+            optimizer,
+            base_lr=[args.lr, backbone_initial_lr],
+            max_lr=[args.max_lr, backbone_max_lr],
+            step_size_up=args.lr_step,
+            step_size_down=args.lr_step_down,
+            mode='triangular2',
+            cycle_momentum=False,
+        )
+
+    history = {"train": [], "val": [], "test": []}
+    best = {}
+    selection_mode = 'min' if args.selection_metric == 'loss' else 'max'
+    selection_state = {
+        'metric': args.selection_metric,
+        'mode': selection_mode,
+        'epoch': None,
+        'value': None,
+        'checkpoint_path': None,
+    }
+    selection_resume_note = None
 
     if args.load_model:
         # A checkpoint is saved by rank 0.  On DDP resume, map its CUDA
@@ -407,6 +522,56 @@ def main():
         scheduler.load_state_dict(checkpoint['scheduler'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         start_epoch = checkpoint['epoch'] + 1
+
+        loaded_history = checkpoint.get('history')
+        if isinstance(loaded_history, dict):
+            history = loaded_history
+            history.setdefault('train', [])
+            history.setdefault('val', [])
+            history.setdefault('test', [])
+        loaded_best = checkpoint.get('best')
+        if isinstance(loaded_best, dict):
+            best = loaded_best
+
+        loaded_selection = checkpoint.get('selection_state')
+        if (isinstance(loaded_selection, dict)
+                and loaded_selection.get('metric') == args.selection_metric
+                and loaded_selection.get('mode') == selection_mode):
+            selection_state.update(loaded_selection)
+        elif isinstance(loaded_selection, dict):
+            # A best checkpoint saved for one primary metric cannot safely be
+            # treated as the best checkpoint for another metric. Keep the
+            # historical curves, but restart primary-selection tracking.
+            best.pop(args.selection_metric, None)
+            selection_resume_note = (
+                'Selection metric changed from %s to %s; primary best tracking restarts.' %
+                (loaded_selection.get('metric'), args.selection_metric)
+            )
+        elif args.selection_metric in best:
+            best.pop(args.selection_metric, None)
+            selection_resume_note = (
+                'Checkpoint has no recoverable primary-selection state; '
+                'best tracking for %s restarts.' % args.selection_metric
+            )
+
+        if is_main_process():
+            print_log(save_path, 'Resumed training from %s at epoch %d' %
+                      (args.model_path, checkpoint['epoch']))
+            if selection_resume_note:
+                print_log(save_path, selection_resume_note)
+            if selection_state['value'] is None:
+                print_log(save_path, 'No prior validation-selection state found; tracking starts fresh.')
+            else:
+                print_log(
+                    save_path,
+                    'Restored best validation %s: %.4f at epoch %s%s' % (
+                        selection_state['metric'],
+                        selection_state['value'],
+                        selection_state['epoch'],
+                        (' (%s)' % selection_state['checkpoint_path'])
+                        if selection_state.get('checkpoint_path') else '',
+                    ),
+                )
     else:
         start_epoch = 1
 
@@ -419,8 +584,6 @@ def main():
     metrics = evaluation.GAD_Evaluation(args) if is_main_process() else None
 
     # experiment logging
-    history = {"train": [], "val": []}
-    best = {}
     args_json_path = os.path.join(save_path, "args.json")
     if is_main_process():
         experiment.save_args(args_json_path, vars(args))
@@ -431,7 +594,7 @@ def main():
             sampler_train.set_epoch(epoch)
         if is_main_process():
             print_log(save_path, '----- %s at epoch #%d' % ("Train", epoch))
-        train_log = train(train_loader, model, criterion, optimizer, epoch)
+        train_log = train(train_loader, model, criterion, optimizer, epoch, save_path)
         
         # 每个 Epoch 结束后强制垃圾回收，防止内存累积
         gc.collect()
@@ -440,6 +603,11 @@ def main():
         if is_main_process():
             print_log(save_path, 'Loss: %.4f' % (train_log['loss']))
             print_log(save_path, 'Group class error: %.2f' % (train_log['group_class_error']))
+            peak_stats = getattr(args, 'peak_cuda_memory_mb', None)
+            if peak_stats:
+                peak_text = ', '.join('rank%d %.0f/%.0f MiB' % (rank, allocated, reserved)
+                                      for rank, (allocated, reserved) in enumerate(peak_stats))
+                print_log(save_path, 'Peak CUDA allocated/reserved: %s' % peak_text)
             print('Current learning rate is %f' % scheduler.get_last_lr()[0])
         scheduler.step()
 
@@ -447,11 +615,14 @@ def main():
         if is_main_process():
             history = experiment.update_history(history, "train", epoch, train_log)
 
-        if epoch % args.test_freq == 0:
+        is_new_best = False
+        should_evaluate = (epoch % args.test_freq == 0) if args.val_mode else (epoch == args.epochs)
+        if should_evaluate:
             if args.distributed:
                 dist.barrier()
             if is_main_process():
-                print_log(save_path, '----- %s at epoch #%d' % ("Test", epoch))
+                eval_name = 'Validation' if args.val_mode else 'Final Test'
+                print_log(save_path, '----- %s at epoch #%d' % (eval_name, epoch))
 
             # All ranks must execute validation because both the model and
             # criterion issue NCCL collectives.  validate() merges the per-rank
@@ -465,15 +636,33 @@ def main():
                 print_log(save_path, "group mAP at 0.5: %.2f" % result['group_mAP_0.5'])
                 print_log(save_path, "outlier mIoU: %.2f" % result['outlier_mIoU'])
 
-                # merge metrics
-                val_metrics = dict(test_log)
-                val_metrics.update({
+                # Final-test results are recorded for reporting, but only VAL
+                # is allowed to participate in checkpoint selection.
+                eval_metrics = dict(test_log)
+                eval_metrics.update({
                     "group_mAP_1.0": result['group_mAP_1.0'],
                     "group_mAP_0.5": result['group_mAP_0.5'],
                     "outlier_mIoU": result['outlier_mIoU'],
                 })
-                history = experiment.update_history(history, "val", epoch, val_metrics)
-                best = experiment.update_best(best, epoch, {**val_metrics, "loss": test_log['loss']})
+                history = experiment.update_history(history, args.eval_split, epoch, eval_metrics)
+
+                if args.val_mode:
+                    current_value = float(eval_metrics[args.selection_metric])
+                    previous_value = selection_state['value']
+                    is_new_best = (
+                        previous_value is None
+                        or (selection_mode == 'min' and current_value < previous_value)
+                        or (selection_mode == 'max' and current_value > previous_value)
+                    )
+                    best = experiment.update_best(best, epoch, eval_metrics)
+                    if is_new_best:
+                        best_checkpoint_path = os.path.abspath(
+                            os.path.join(checkpoint_dir, 'best_val.pth'))
+                        selection_state.update({
+                            'epoch': epoch,
+                            'value': current_value,
+                            'checkpoint_path': best_checkpoint_path,
+                        })
 
                 # save summary and curves
                 summary_path = os.path.join(save_path, "summary.json")
@@ -482,22 +671,51 @@ def main():
                 experiment.plot_curves(curves_path, history)
                 print_log(save_path, f"Updated summary and curves at epoch {epoch}")
 
-                state = {
-                    'epoch': epoch,
-                    'state_dict': model.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'scheduler': scheduler.state_dict(),
-                }
-                result_path = save_path + '/epoch%d.pth' % epoch
-                save_checkpoint_safely(state, result_path)
-            if args.distributed:
-                dist.barrier()
+        if is_main_process():
+            # Save a resumable latest checkpoint every epoch, independently of
+            # validation frequency. PyTorch 1.13 CyclicLR serializes its bound
+            # scale function as an unpicklable WeakMethod, so omit that one
+            # field; the freshly-created scheduler supplies it on resume.
+            scheduler_state = scheduler.state_dict()
+            scheduler_state.pop('_scale_fn_ref', None)
+            state = {
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler_state,
+                'history': history,
+                'best': best,
+                'selection_state': selection_state,
+                'protocol': args.protocol,
+                'eval_split': args.eval_split,
+            }
+            checkpoint_path = os.path.join(checkpoint_dir, 'epoch%d.pth' % epoch)
+            save_checkpoint_safely(state, checkpoint_path)
+            if is_new_best:
+                save_checkpoint_safely(state, selection_state['checkpoint_path'])
+                print_log(
+                    save_path,
+                    'New best validation %s: %.4f at epoch %d; saved %s' % (
+                        args.selection_metric,
+                        selection_state['value'],
+                        epoch,
+                        selection_state['checkpoint_path'],
+                    ),
+                )
+            removed_paths = remove_older_checkpoints(checkpoint_dir, checkpoint_path)
+            if removed_paths:
+                print_log(save_path, 'Removed %d older checkpoint(s); retaining %s' % (
+                    len(removed_paths), os.path.basename(checkpoint_path)))
+        if args.distributed:
+            # Non-main ranks must not start the next epoch while rank 0 is
+            # still serializing a potentially large checkpoint.
+            dist.barrier()
 
     if args.distributed:
         dist.destroy_process_group()
 
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, save_path):
     model.train()
     criterion.train()
 
@@ -507,7 +725,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
     space_fmt = str(len(str(args.epochs)))
     header = 'Epoch [{start_epoch: >{fill}}/{end_epoch}]'.format(start_epoch=epoch, end_epoch=args.epochs,
                                                                  fill=space_fmt)
-    print_freq = len(train_loader)
+    print_freq = args.log_interval if args.log_interval > 0 else len(train_loader)
+    epoch_start = time.time()
 
     for i, (images, targets, infos) in enumerate(metric_logger.log_every(train_loader, print_freq, header)):
         images = images.cuda()  # [B, T, 3, H, W]
@@ -575,9 +794,58 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         del images, targets
 
+        completed_steps = i + 1
+        is_final_step = completed_steps == len(train_loader) or (
+            args.max_train_steps and completed_steps >= args.max_train_steps
+        )
+        if (is_main_process() and args.log_interval > 0
+                and (completed_steps % args.log_interval == 0 or is_final_step)):
+            elapsed_seconds = time.time() - epoch_start
+            seconds_per_step = elapsed_seconds / completed_steps
+            remaining_minutes = seconds_per_step * (len(train_loader) - completed_steps) / 60
+            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+            print_log(
+                save_path,
+                ('[%s] Train progress epoch #%d: step %d/%d | loss %.4f | group error %.2f | '
+                 'lr %.6f | %.2fs/step | eta %.1f min') % (
+                    timestamp,
+                    epoch,
+                    completed_steps,
+                    len(train_loader),
+                    metric_logger.loss.global_avg,
+                    metric_logger.group_class_error.global_avg,
+                    metric_logger.lr.value,
+                    seconds_per_step,
+                    remaining_minutes,
+                ),
+            )
+
+        if args.max_train_steps and completed_steps >= args.max_train_steps:
+            if is_main_process():
+                print('Reached --max_train_steps={}, ending epoch early.'.format(args.max_train_steps), flush=True)
+            break
+
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
 
+    if args.report_peak_memory:
+        torch.cuda.synchronize()
+        local_peak = torch.tensor(
+            [
+                torch.cuda.max_memory_allocated() / (1024 ** 2),
+                torch.cuda.max_memory_reserved() / (1024 ** 2),
+            ],
+            device=torch.device('cuda', args.local_rank if args.distributed else torch.cuda.current_device()),
+            dtype=torch.float64,
+        )
+        if args.distributed:
+            gathered_peaks = [torch.zeros_like(local_peak) for _ in range(dist.get_world_size())]
+            dist.all_gather(gathered_peaks, local_peak)
+            peak_stats = [tuple(value.cpu().tolist()) for value in gathered_peaks]
+        else:
+            peak_stats = [tuple(local_peak.cpu().tolist())]
+        if is_main_process():
+            args.peak_cuda_memory_mb = peak_stats
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
