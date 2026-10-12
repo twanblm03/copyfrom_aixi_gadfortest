@@ -20,6 +20,8 @@ from dataloader.dataloader import read_dataset
 import evaluation.cafe_eval as evaluation
 
 parser = argparse.ArgumentParser(description='Group Activity Detection test code')
+from models.heatmap import add_heatmap_arguments
+add_heatmap_arguments(parser)
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
@@ -127,7 +129,11 @@ def load_model_checkpoint(model, model_path):
     if not model_path:
         raise ValueError('--model_path is required for evaluation')
 
-    checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+    import inspect
+    load_options = {'map_location': 'cpu'}
+    if 'weights_only' in inspect.signature(torch.load).parameters:
+        load_options['weights_only'] = False
+    checkpoint = torch.load(model_path, **load_options)
     state_dict = checkpoint.get('state_dict', checkpoint)
     if not hasattr(state_dict, 'items'):
         raise TypeError(f'Checkpoint {model_path} does not contain a valid state dict')
@@ -259,7 +265,11 @@ def validate(test_loader, model, criterion, metrics):
             mae_feats = torch.stack([t['mae_feats'] for t in targets])
 
         # compute output
-        outputs = model(images, boxes, dummy_mask, mae_feats)
+        if args.research_b0_repro:
+            valid = torch.stack([t['actor_frame_valid'] for t in targets])
+            outputs = model(images, boxes, dummy_mask, mae_feats, actor_frame_valid=valid)
+        else:
+            outputs = model(images, boxes, dummy_mask, mae_feats)
 
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict

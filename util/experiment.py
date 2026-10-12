@@ -3,11 +3,12 @@ import json
 import os
 from typing import Dict, List
 
-import matplotlib
-
-# Use non-interactive backend for servers/CLI
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 
 def ensure_dir(path: str):
@@ -63,6 +64,10 @@ def save_summary(path: str, args: Dict, history: Dict, best: Dict):
 
 
 def plot_curves(path: str, history: Dict):
+    if plt is None:
+        import warnings
+        warnings.warn('Optional matplotlib is unavailable; training metrics remain saved in JSON.')
+        return
     ensure_dir(os.path.dirname(path))
     plt.figure(figsize=(10, 6))
 

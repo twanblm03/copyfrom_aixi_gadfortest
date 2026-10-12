@@ -158,6 +158,7 @@ class CafeDataset(data.Dataset):
             raise ValueError(f'num_frame must be at least 1, got {self.num_frame}')
         self.videomae_feats_path = getattr(args, 'videomae_feats_path', None)
         self.use_mae = getattr(args, 'use_mae', False)
+        self.research_validity = getattr(args, 'research_b0_repro', False)
         self.mae_dim = getattr(args, 'mae_dim', 768)
         self.transform = transforms.Compose([
             transforms.Resize((args.image_height, args.image_width)),
@@ -242,6 +243,7 @@ class CafeDataset(data.Dataset):
         images, boxes, gt_boxes, actions, activities, members, membership = [], [], [], [], [], [], []
         targets = {}
         fids = []
+        track_validity = []
 
         for i, (frame, fid) in enumerate(frames):
             vid, cid = frame
@@ -258,6 +260,7 @@ class CafeDataset(data.Dataset):
                 gt_boxes.append([x_c / image_w, y_c / image_h, w / image_w, h / image_h])
 
             temp_boxes = np.ones((num_boxes, 4))
+            track_valid = np.zeros(self.num_boxes, dtype=bool)
             for j, track in enumerate(self.tracks[(vid, cid)][fid]):                
                 _id, x1, y1, x2, y2 = track
 
@@ -269,6 +272,11 @@ class CafeDataset(data.Dataset):
 
                 if _id <= num_boxes:
                     temp_boxes[int(_id - 1)] = np.array([x_c, y_c, w, h])
+                    if _id >= 1:
+                        track_valid[int(_id - 1)] = bool(np.isfinite([x1, y1, x2, y2]).all()
+                            and w > 1e-7 and h > 1e-7 and x2 > 0 and y2 > 0 and x1 < 1 and y1 < 1)
+
+            track_validity.append(track_valid)
 
             boxes.append(temp_boxes)
             actions = [self.anns[frame]['actions']]
@@ -311,6 +319,8 @@ class CafeDataset(data.Dataset):
         targets['gt_boxes'] = gt_boxes
         targets['members'] = members
         targets['membership'] = membership
+        if self.research_validity:
+            targets['actor_frame_valid'] = torch.from_numpy(np.stack(track_validity))
 
         if self.use_mae and self.videomae_feats_path:
             feat_path = os.path.join(self.videomae_feats_path, f'{vid}_{cid}.npy')

@@ -30,3 +30,9 @@ videomae_features_giant/
 # Generated training artifacts; checkpoints can be hundreds of megabytes each.
 result/
 *.log
+
+# Local environment/data and generated research records (Dataset can be a symlink).
+/.miniconda3/
+/.venv/
+/Dataset
+/results/

@@ -26,6 +26,8 @@ import evaluation.cafe_eval as evaluation
 from util import experiment
 
 parser = argparse.ArgumentParser(description='Group Activity Detection train code', add_help=False)
+from models.heatmap import add_heatmap_arguments
+add_heatmap_arguments(parser)
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
@@ -384,7 +386,8 @@ def main():
     model = model.cuda()
     device_ids = [device_id.strip() for device_id in args.device.split(',') if device_id.strip()]
     if args.distributed:
-        model = DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank)
+        model = DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank,
+                                        find_unused_parameters=args.heatmap_variant == 'h2_s')
         if is_main_process():
             print_log(save_path, f'Using DDP on {dist.get_world_size()} GPUs')
     elif len(device_ids) > 1:
@@ -752,7 +755,11 @@ def train(train_loader, model, criterion, optimizer, epoch, save_path):
             if args.use_mae and 'mae_feats' in micro_targets[0]:
                 mae_feats = torch.stack([t['mae_feats'] for t in micro_targets])
 
-            outputs = model(micro_images, boxes, dummy_mask, mae_feats)
+            if args.research_b0_repro:
+                valid = torch.stack([t['actor_frame_valid'] for t in micro_targets])
+                outputs = model(micro_images, boxes, dummy_mask, mae_feats, actor_frame_valid=valid)
+            else:
+                outputs = model(micro_images, boxes, dummy_mask, mae_feats)
             loss_dict = criterion(outputs, micro_targets, log=False)
             weight_dict = criterion.weight_dict
             loss = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -877,7 +884,11 @@ def validate(test_loader, model, criterion, metrics, epoch):
              mae_feats = torch.stack([t['mae_feats'] for t in targets])
 
         # compute output
-        outputs = model(images, boxes, dummy_mask, mae_feats)
+        if args.research_b0_repro:
+            valid = torch.stack([t['actor_frame_valid'] for t in targets])
+            outputs = model(images, boxes, dummy_mask, mae_feats, actor_frame_valid=valid)
+        else:
+            outputs = model(images, boxes, dummy_mask, mae_feats)
 
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
