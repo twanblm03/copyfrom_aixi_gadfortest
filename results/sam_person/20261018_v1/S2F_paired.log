@@ -1,0 +1,30 @@
+cached pilot input (1, 112)
+cached pilot input (1, 438)
+cached pilot input (2, 372)
+cached pilot input (3, 30)
+cached pilot input (4, 353)
+cached pilot input (4, 416)
+cached pilot input (9, 89)
+cached pilot input (10, 324)
+cached pilot input (11, 105)
+cached pilot input (11, 291)
+cached pilot input (12, 374)
+cached pilot input (17, 198)
+cached pilot input (19, 385)
+cached pilot input (20, 0)
+cached pilot input (22, 297)
+cached pilot input (24, 282)
+cached pilot input (13, 82)
+cached pilot input (13, 173)
+cached pilot input (14, 159)
+cached pilot input (14, 258)
+cached pilot input (15, 17)
+cached pilot input (15, 70)
+cached pilot input (16, 60)
+cached pilot input (16, 335)
+STAGE_RESULT S2F reference complete 0
+S2F smoke {'step': 1, 'loss': 1.2581104040145874, 'terms': {'loss_ce': 0.5692955255508423, 'class_error': 23.255813598632812, 'cardinality_error': 10.0, 'loss_group_ce': 0.10709845274686813, 'group_class_error': 28.571426391601562, 'group_cardinality_error': 0.25, 'loss_group_code': 0.07787908613681793, 'loss_consistency': 0.09616044908761978}, 'grad_norm': 34.397296761120685, 'seconds': 1.0273556932806969, 'lr': 1e-05}
+STAGE_RESULT S2F smoke complete 3
+S2F overfit {'step': 1, 'loss': 1.2581104040145874, 'terms': {'loss_ce': 0.5692955255508423, 'class_error': 23.255813598632812, 'cardinality_error': 10.0, 'loss_group_ce': 0.10709845274686813, 'group_class_error': 28.571426391601562, 'group_cardinality_error': 0.25, 'loss_group_code': 0.07787908613681793, 'loss_consistency': 0.09616044908761978}, 'grad_norm': 34.39729668882921, 'seconds': 0.9044213639572263, 'lr': 1e-05}
+S2F overfit {'step': 10, 'loss': 0.27842798829078674, 'terms': {'loss_ce': 0.049611397087574005, 'class_error': 0.0, 'cardinality_error': 7.25, 'loss_group_ce': 0.009373141452670097, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03424862027168274, 'loss_consistency': 0.0241001658141613}, 'grad_norm': 6.895413116895325, 'seconds': 0.8192332619801164, 'lr': 1e-05}
+S2F overfit {'step': 20, 'loss': 0.28589093685150146, 'terms': {'loss_ce': 0.006242090370506048, 'class_error': 0.0, 'cardinality_error': 8.75, 'loss_group_ce': 0.00022861389152240008, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04316234588623047, 'loss_consistency': 0.03180424124002457}, 'grad_norm': 5.444387169949759, 'seconds': 0.8641549609601498, 'lr': 1e-05}

@@ -1,0 +1,208 @@
+{
+  "cohorts": {
+    "paired_stable": {
+      "train_clips": 16,
+      "val_clips": 8,
+      "steps": 80,
+      "seed": 1,
+      "metrics": {
+        "B0": {
+          "group_mAP_1.0": 15.046296296296296,
+          "group_mAP_0.5": 36.574074074074076,
+          "outlier_mIoU": 59.176587301587304,
+          "membership_precision": 0.7659574468085106,
+          "membership_recall": 0.75,
+          "membership_f1": 0.7578947368421053,
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            0.0,
+            66.66666666666666,
+            12.5,
+            11.11111111111111
+          ],
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            66.66666666666666,
+            75.0,
+            44.44444444444444
+          ]
+        },
+        "S2F": {
+          "group_mAP_1.0": 7.407407407407407,
+          "group_mAP_0.5": 37.96296296296296,
+          "outlier_mIoU": 64.4047619047619,
+          "membership_precision": 0.7727272727272727,
+          "membership_recall": 0.7083333333333334,
+          "membership_f1": 0.7391304347826086,
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            0.0,
+            0.0,
+            11.11111111111111
+          ],
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            66.66666666666666,
+            66.66666666666666,
+            50.0,
+            44.44444444444444
+          ]
+        }
+      },
+      "delta_S2F_minus_B0": {
+        "group_mAP_1.0": -7.638888888888888,
+        "group_mAP_0.5": 1.3888888888888857,
+        "outlier_mIoU": 5.228174603174594,
+        "membership_f1": -0.01876430205949664
+      },
+      "error_diagnostics": {
+        "B0": {
+          "gt_groups": 13,
+          "pred_groups": 10,
+          "exact_compatible_gt_sets": 4,
+          "split_overlap_events": 0,
+          "merge_overlap_events": 1,
+          "high_confidence_incompatible": 1,
+          "matched_missing_members": 12,
+          "matched_extra_members": 11,
+          "matched_group_activity_errors": 5,
+          "gt_groups_by_class": {
+            "3": 3,
+            "4": 3,
+            "5": 4,
+            "6": 3
+          }
+        },
+        "S2F": {
+          "gt_groups": 13,
+          "pred_groups": 11,
+          "exact_compatible_gt_sets": 2,
+          "split_overlap_events": 1,
+          "merge_overlap_events": 2,
+          "high_confidence_incompatible": 0,
+          "matched_missing_members": 14,
+          "matched_extra_members": 10,
+          "matched_group_activity_errors": 4,
+          "gt_groups_by_class": {
+            "3": 3,
+            "4": 3,
+            "5": 4,
+            "6": 3
+          }
+        }
+      }
+    },
+    "paired_extended": {
+      "train_clips": 24,
+      "val_clips": 16,
+      "steps": 300,
+      "seed": 1,
+      "metrics": {
+        "B0": {
+          "group_mAP_1.0": 15.168650793650793,
+          "group_mAP_0.5": 38.43253968253968,
+          "outlier_mIoU": 64.61918290043289,
+          "membership_precision": 0.7956989247311828,
+          "membership_recall": 0.7789473684210526,
+          "membership_f1": 0.7872340425531915,
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            16.666666666666664,
+            11.428571428571429,
+            40.0,
+            22.916666666666664
+          ],
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            71.42857142857143,
+            80.0,
+            45.83333333333333
+          ]
+        },
+        "S2F": {
+          "group_mAP_1.0": 11.64021164021164,
+          "group_mAP_0.5": 34.78615520282187,
+          "outlier_mIoU": 62.156385281385276,
+          "membership_precision": 0.7790697674418605,
+          "membership_recall": 0.7052631578947368,
+          "membership_f1": 0.7403314917127072,
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            14.285714285714285,
+            0.0,
+            22.22222222222222
+          ],
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            66.66666666666666,
+            57.14285714285714,
+            40.0,
+            44.907407407407405
+          ]
+        }
+      },
+      "delta_S2F_minus_B0": {
+        "group_mAP_1.0": -3.5284391534391535,
+        "group_mAP_0.5": -3.6463844797178098,
+        "outlier_mIoU": -2.4627976190476133,
+        "membership_f1": -0.046902550840484336
+      },
+      "error_diagnostics": {
+        "B0": {
+          "gt_groups": 26,
+          "pred_groups": 19,
+          "exact_compatible_gt_sets": 8,
+          "split_overlap_events": 1,
+          "merge_overlap_events": 2,
+          "high_confidence_incompatible": 2,
+          "matched_missing_members": 21,
+          "matched_extra_members": 19,
+          "matched_group_activity_errors": 10,
+          "gt_groups_by_class": {
+            "3": 6,
+            "4": 7,
+            "6": 6,
+            "5": 5,
+            "1": 1,
+            "2": 1
+          }
+        },
+        "S2F": {
+          "gt_groups": 26,
+          "pred_groups": 19,
+          "exact_compatible_gt_sets": 7,
+          "split_overlap_events": 0,
+          "merge_overlap_events": 1,
+          "high_confidence_incompatible": 3,
+          "matched_missing_members": 28,
+          "matched_extra_members": 19,
+          "matched_group_activity_errors": 10,
+          "gt_groups_by_class": {
+            "3": 6,
+            "4": 7,
+            "6": 6,
+            "5": 5,
+            "1": 1,
+            "2": 1
+          }
+        }
+      }
+    }
+  },
+  "sam_gpu_hours": 0.2683510004149543,
+  "training_gpu_hours": 0.9126968222194248,
+  "registry_rows": 17,
+  "fairness_checks_passed": true
+}

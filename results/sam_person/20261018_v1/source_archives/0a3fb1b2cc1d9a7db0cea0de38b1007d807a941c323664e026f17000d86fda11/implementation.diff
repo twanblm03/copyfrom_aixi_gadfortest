@@ -1,0 +1,294 @@
+diff --git a/dataloader/cafe.py b/dataloader/cafe.py
+index 111183e..7a37c2d 100644
+--- a/dataloader/cafe.py
++++ b/dataloader/cafe.py
+@@ -12,13 +12,16 @@ ACTIVITIES = ['Queueing', 'Ordering', 'Eating/Drinking', 'Working/Studying', 'Fi
+ 
+ 
+ # read annotation files
+-def cafe_read_annotations(path, videos, num_class):
++def cafe_read_annotations(path, videos, num_class, clip_ids=None):
+     labels = {}
+     group_to_id = {name: i for i, name in enumerate(ACTIVITIES)}
+ 
+     for vid in videos:
+         video_path = os.path.join(path, vid)
+-        for cid in os.listdir(video_path):
++        # Bounded adapters may supply explicit clip IDs; default B0 is unchanged.
++        clip_names = os.listdir(video_path) if clip_ids is None else [
++            str(cid) for clip_vid, cid in clip_ids if int(clip_vid) == int(vid)]
++        for cid in clip_names:
+             clip_path = os.path.join(video_path, cid)            
+             label_path = clip_path + '/ann.json'
+ 
+diff --git a/models/b0_repro.py b/models/b0_repro.py
+index 9243272..5296bc8 100644
+--- a/models/b0_repro.py
++++ b/models/b0_repro.py
+@@ -71,6 +71,13 @@ class GADTRB0Repro(nn.Module):
+ 
+         self.heatmap_variant = getattr(args, 'heatmap_variant', 'off')
+         self.attention_probe = getattr(args, 'attention_probe', False)
++        self.train_mask_mode = getattr(args, 'train_mask_mode', 'disabled')
++        self.mask_empty_eps = getattr(args, 'mask_empty_eps', 1e-6)
++        self.last_mask_stats = None
++        if self.train_mask_mode not in ('disabled', 'sam_roi'):
++            raise ValueError('unknown train_mask_mode')
++        if self.train_mask_mode != 'disabled' and self.heatmap_variant != 'off':
++            raise ValueError('first SAM branch requires unmodified B0')
+         self.mask_head = None
+         if self.heatmap_variant != 'off':
+             # Construct after B0 initialization without advancing paired RNGs.
+@@ -92,7 +99,8 @@ class GADTRB0Repro(nn.Module):
+ 
+         return torch.sqrt(dist)
+ 
+-    def forward(self, x, boxes, dummy_mask, mae_feats=None, actor_frame_valid=None):
++    def forward(self, x, boxes, dummy_mask, mae_feats=None, actor_frame_valid=None,
++                actor_masks=None, raw_mask_valid=None):
+         """
+         :param x: [B, T, 3, H, W]
+         :param boxes: [B, T, N, 4]
+@@ -164,6 +172,16 @@ class GADTRB0Repro(nn.Module):
+         valid_samples = valid_y[:, :, None] & valid_x[:, None, :]
+         actor_features = actor_features * valid_samples[:, None].to(actor_features.dtype)
+ 
++        if self.train_mask_mode == 'sam_roi':
++            from .sam_roi import filter_actor_rois
++            if actor_masks is None or raw_mask_valid is None or actor_frame_valid is None:
++                raise ValueError('SAM RoI requires complete masks and validity')
++            if tuple(actor_masks.shape) != (bs, t, n, oh, ow):
++                raise ValueError('mask grid must match actual backbone height/width')
++            actor_features, self.last_mask_stats = filter_actor_rois(
++                actor_features, boxes_flat, actor_masks, actor_frame_valid,
++                raw_mask_valid, self.roi_align, self.mask_empty_eps, sample_valid=valid_samples)
++
+         actor_features = torch.reshape(actor_features, (bs * t * n, -1))
+         actor_features = self.fc_emb(actor_features)
+         actor_features = F.relu(actor_features)
+diff --git a/tools/run_heatmap_research.py b/tools/run_heatmap_research.py
+index b0894b4..25af86f 100644
+--- a/tools/run_heatmap_research.py
++++ b/tools/run_heatmap_research.py
+@@ -24,12 +24,14 @@ import torch
+ import torch.nn.functional as F
+ from torch.utils.data import DataLoader, Subset
+ 
+-from dataloader.dataloader import read_dataset, TRAIN_CAFE_P, VAL_CAFE_P, TEST_CAFE_P
++from dataloader.dataloader import (read_dataset, TRAIN_CAFE_P, VAL_CAFE_P, TEST_CAFE_P,
++                                   TRAIN_CAFE_V, VAL_CAFE_V, TEST_CAFE_V)
+ from evaluation.cafe_eval import GAD_Evaluation, make_clip_key, make_image_key
+ from models import build_model
+ from models.heatmap import gaussian_targets, roi_responses, prepare_targets
+ from models.heatmap_criterion import HeatmapMatcher
+ from util.group_export import make_txt
++from util.training_resume import atomic_torch_save, restore_training_state, training_checkpoint
+ 
+ 
+ def digest(value):
+@@ -158,12 +160,13 @@ def record_context(out, args, cli):
+     json_write(out/'environment.json', environment)
+     json_write(out/'existing_results.json', sorted(str(p.relative_to(ROOT)) for p in (ROOT/'outputs').rglob('args.json')
+                                                    if 'heatmap' not in str(p)))
+-    return dict(run_id=out.as_posix(), variant=args.heatmap_variant, protocol='place_train_val_b0_repro',
++    return dict(run_id=out.as_posix(), variant=args.heatmap_variant, protocol=args.split+'_train_val_b0_repro',
+         code_revision=revision, dirty_diff_hash=digest(diff.encode()),
+         baseline_revision=git('rev-parse','exp/b0-repro').strip(),
+         source_manifest_hash=file_hash(out/'source_manifest.json'), config_hash=file_hash(out/'resolved_config.json'),
+         evaluator_hash=file_hash(ROOT/'evaluation/cafe_eval.py'), seed=args.random_seed,
+-        init_source=cli.checkpoint or 'ImageNet ResNet18 + paired seeded B0 heads', init_hash=None,
++        init_source=cli.resume or cli.checkpoint or 'ImageNet ResNet18 + paired seeded B0 heads', init_hash=None,
++        resumed_from=cli.resume,
+         membership_normalizer='softmax_K', target_type='Gaussian member max' if args.heatmap_variant!='off' else None,
+         mask_resolution=[23,40] if args.heatmap_variant!='off' else None, K=args.num_group_tokens, T=args.num_frame,
+         threshold_protocol='B0 argmax K then max>0.5; no-group order unchanged',
+@@ -173,7 +176,12 @@ def record_context(out, args, cli):
+         stage=cli.stage, wall_time=None, split_hash=None, data_manifest_hash=None)
+ 
+ 
+-def dataset_manifest(train_set, val_set, out):
++def dataset_manifest(train_set, val_set, out, split_name='place'):
++    protocols = {
++        'place': dict(train=TRAIN_CAFE_P, val=VAL_CAFE_P, test=TEST_CAFE_P),
++        'view': dict(train=TRAIN_CAFE_V, val=VAL_CAFE_V, test=TEST_CAFE_V),
++    }
++    split = protocols[split_name]
+     manifest = {}
+     for name, dataset in (('train', train_set), ('val', val_set)):
+         rows = []
+@@ -184,7 +192,6 @@ def dataset_manifest(train_set, val_set, out):
+                              actors=len(dataset.anns[clip]['actions'])))
+         manifest[name] = rows
+     json_write(out/'data_manifest.json', manifest)
+-    split = dict(train=TRAIN_CAFE_P, val=VAL_CAFE_P, test=TEST_CAFE_P)
+     json_write(out/'split.json', split)
+     return file_hash(out/'data_manifest.json'), file_hash(out/'split.json')
+ 
+@@ -354,7 +361,7 @@ def run_oracle(train_set,val_set,args,out,cli):
+     return report
+ 
+ 
+-def train_bounded(model, criterion, dataset, val_loader, args, cli, out, device):
++def train_bounded(model, criterion, dataset, val_loader, args, cli, out, device, resume_state=None):
+     core=model.module if isinstance(model,torch.nn.DataParallel) else model
+     fixed = cli.stage in ('smoke','overfit','pilot')
+     dataset.is_training = cli.stage != 'overfit'
+@@ -381,6 +388,32 @@ def train_bounded(model, criterion, dataset, val_loader, args, cli, out, device)
+     started = time.monotonic()
+     epoch = 0
+     (out/'checkpoints').mkdir()
++    best_path=out/'checkpoints'/'best_val.pth'
++    resume_info=None
++    if resume_state is not None:
++        epoch,step,best,rng_restored=restore_training_state(
++            resume_state,optimizer,args,protocol_steps_per_epoch,generator)
++        saved_best=Path(resume_state.get('best_checkpoint',cli.resume))
++        if not saved_best.is_file():
++            raise ValueError('Saved best checkpoint is unavailable: '+str(saved_best))
++        shutil.copyfile(saved_best,best_path)
++        optimizer_steps=[float(state['step']) for state in optimizer.state.values() if 'step' in state]
++        resume_info=dict(source=str(Path(cli.resume).resolve()),source_hash=file_hash(cli.resume),
++            completed_epochs=epoch,start_epoch=epoch+1,resumed_step=step,target_step=limit,
++            optimizer_restored=True,optimizer_state_count=len(optimizer.state),
++            optimizer_step_range=[min(optimizer_steps),max(optimizer_steps)] if optimizer_steps else None,
++            next_learning_rate=b0_learning_rate(args,step//protocol_steps_per_epoch),
++            best_metric=best,best_source=str(saved_best),rng_restored=rng_restored,
++            random_seed=args.random_seed,worker_rng_restored=False,
++            exact_continuation=False,
++            rng_note='Saved main/loader RNG restored; worker streams restart.' if rng_restored else
++                     'Legacy checkpoint has no RNG state; reset main/loader/workers from seed. Not bitwise continuation.')
++        json_write(out/'resume.json',resume_info)
++        print('RESUME',json.dumps(resume_info),flush=True)
++        # Persist the recoverable starting point before doing any new work.
++        atomic_torch_save(training_checkpoint(core,optimizer,args,epoch,step,
++            resume_state['metrics'],best,best_path,generator),out/'checkpoints'/'latest.pth')
++    resumed_step=step
+     sample_order = []
+     train_eval_loader = DataLoader(training_data,batch_size=args.test_batch,shuffle=False,
+                                   num_workers=0,collate_fn=collate) if cli.train_eval_every else None
+@@ -439,7 +472,7 @@ def train_bounded(model, criterion, dataset, val_loader, args, cli, out, device)
+                 peak_memory_mb=torch.cuda.max_memory_allocated(device)/1024**2 if device.type=='cuda' else None)
+             records.append(record)
+             with open(out/'steps.jsonl','a') as stream: stream.write(json.dumps(record)+'\n')
+-            if step==1 or step%10==0 or step==limit:
++            if step==resumed_step+1 or step%10==0 or step==limit:
+                 print(json.dumps(record),flush=True)
+             if train_eval_loader is not None and step%cli.train_eval_every==0:
+                 torch.save(dict(state_dict=core.state_dict(),optimizer=optimizer.state_dict(),step=step,args=vars(args)),
+@@ -451,16 +484,24 @@ def train_bounded(model, criterion, dataset, val_loader, args, cli, out, device)
+             metrics=evaluate(model,val_loader,args,out,device,'epoch'+str(epoch))
+             if metrics['group_mAP_1.0']>best:
+                 best=metrics['group_mAP_1.0']
+-                torch.save(dict(state_dict=core.state_dict(),optimizer=optimizer.state_dict(),epoch=epoch,
+-                                metrics=metrics,args=vars(args)),out/'checkpoints'/'best_val.pth')
++                atomic_torch_save(training_checkpoint(core,optimizer,args,epoch,step,
++                    metrics,best,best_path,generator),best_path)
++            atomic_torch_save(training_checkpoint(core,optimizer,args,epoch,step,
++                metrics,best,best_path,generator),out/'checkpoints'/'latest.pth')
++            print('VAL_METRICS',epoch,json.dumps(metrics,default=json_default),flush=True)
+     checkpoint=out/'checkpoints'/'last.pth'
+-    torch.save(dict(state_dict=core.state_dict(),optimizer=optimizer.state_dict(),step=step,args=vars(args)),checkpoint)
++    if cli.stage=='full':
++        atomic_torch_save(training_checkpoint(core,optimizer,args,epoch,step,
++            metrics,best,best_path,generator),checkpoint)
++    else:
++        atomic_torch_save(dict(state_dict=core.state_dict(),optimizer=optimizer.state_dict(),step=step,args=vars(args)),checkpoint)
+     # Verify actual serialized state reload before evaluation export.
+     restored=torch.load(checkpoint,map_location=device)
+     core.load_state_dict(restored['state_dict'],strict=True)
+     json_write(out/'sample_order.json',sample_order)
+-    json_write(out/'training_summary.json',dict(steps=step,seconds=time.monotonic()-started,
+-        seconds_per_step=(time.monotonic()-started)/step,first_loss=records[0]['losses'],last_loss=records[-1]['losses'],
++    json_write(out/'training_summary.json',dict(steps=step,resumed_step=resumed_step,session_steps=step-resumed_step,
++        resume=resume_info,seconds=time.monotonic()-started,
++        seconds_per_step=(time.monotonic()-started)/(step-resumed_step),first_loss=records[0]['losses'],last_loss=records[-1]['losses'],
+         protocol_steps_per_epoch=protocol_steps_per_epoch,
+         learning_rate_protocol='original B0 epochs counted by full TRAIN optimizer steps, not subset passes',
+         cached_fixed_inputs=cli.cache_fixed_overfit, train_eval_every=cli.train_eval_every,
+@@ -508,7 +549,9 @@ def main():
+     parser.add_argument('--batch',type=int)
+     parser.add_argument('--micro-batch',type=int)
+     parser.add_argument('--seed',type=int)
+-    parser.add_argument('--checkpoint')
++    initialization=parser.add_mutually_exclusive_group()
++    initialization.add_argument('--checkpoint',help='load model weights only, without training progress')
++    initialization.add_argument('--resume',help='restore a full epoch checkpoint including optimizer and progress')
+     parser.add_argument('--allow-unused-bbox-checkpoint',action='store_true',
+                         help='allow only obsolete bbox_emb keys, absent from frozen B0 forward; recorded explicitly')
+     parser.add_argument('--probe',action='store_true')
+@@ -517,12 +560,16 @@ def main():
+     parser.add_argument('--train-eval-every',type=int,default=0,help='train-only overfit diagnostics/checkpoints every N steps, including step0')
+     parser.add_argument('--persistent-workers',action='store_true',help='keep training input workers alive across subset passes; pair all configurations consistently')
+     cli=parser.parse_args()
++    if cli.resume and (cli.stage!='full' or cli.allow_unused_bbox_checkpoint):
++        raise ValueError('--resume requires stage full and exact model compatibility')
+     os.chdir(str(ROOT))
+     args=argparse.Namespace(**json.loads(Path(cli.config).read_text()))
+     for attr,value in (('batch',cli.batch),('micro_batch',cli.micro_batch),('random_seed',cli.seed)):
+         if value is not None: setattr(args,attr,value)
+-    if not args.val_mode or args.split!='place' or args.use_mae or not args.no_mae or not args.research_b0_repro:
+-        raise ValueError('first-round runner is frozen to place TRAIN->VAL, no VideoMAE')
++    if not args.val_mode or args.split not in ('place','view') or args.use_mae or not args.no_mae or not args.research_b0_repro:
++        raise ValueError('runner requires place/view TRAIN->VAL, research B0, no VideoMAE')
++    if args.split=='view' and args.heatmap_variant!='off':
++        raise ValueError('view protocol is enabled only for the mask-free B0 baseline')
+     frozen = dict(backbone='resnet18',num_frame=5,num_group_tokens=12,hidden_dim=256,
+         image_width=1280,image_height=720,optimizer='adam',lr_schedule='linear',
+         lr=1e-5,max_lr=1e-4,warmup_epochs=5,epochs=30,weight_decay=0,
+@@ -560,7 +607,7 @@ def main():
+         train_set,val_set=read_dataset(args)
+         # Canonical subset identities, independent of os.listdir order.
+         train_set.frames.sort(); val_set.frames.sort()
+-        record['data_manifest_hash'],record['split_hash']=dataset_manifest(train_set,val_set,out)
++        record['data_manifest_hash'],record['split_hash']=dataset_manifest(train_set,val_set,out,args.split)
+         json_write(out/'selected_clips.json',dict(train=[train_set.frames[i] for i in subset_indices(train_set,0 if cli.stage=='full' else cli.train_clips)],
+             val=[val_set.frames[i] for i in subset_indices(val_set,cli.eval_clips)]))
+         if cli.stage=='oracle':
+@@ -575,19 +622,25 @@ def main():
+             if device.type=='cuda' and not torch.cuda.is_available():
+                 raise RuntimeError('CUDA unavailable in this execution environment')
+             model,criterion=build_model(args)
+-            if cli.checkpoint:
+-                loaded=torch.load(cli.checkpoint,map_location='cpu')
+-                state={key.removeprefix('module.') if hasattr(key,'removeprefix') else key[7:] if key.startswith('module.') else key:value
+-                       for key,value in loaded.get('state_dict',loaded).items()}
+-                if cli.allow_unused_bbox_checkpoint:
+-                    removed=[key for key in state if key.startswith('bbox_emb.')]
+-                    for key in removed: del state[key]
+-                    json_write(out/'checkpoint_compatibility.json',dict(ignored_keys=removed,
+-                        reason='bbox_emb is absent from exp/b0-repro model and forward; released reference only'))
+-                incompatible=model.load_state_dict(state,strict=False)
+-                if incompatible.unexpected_keys or any(not key.startswith('mask_head.') for key in incompatible.missing_keys):
+-                    raise RuntimeError(str(incompatible))
+-                record['checkpoint_source_hash']=file_hash(cli.checkpoint)
++            resume_state=None
++            initialization_path=cli.resume or cli.checkpoint
++            if initialization_path:
++                loaded=torch.load(initialization_path,map_location='cpu')
++                if cli.resume:
++                    model.load_state_dict(loaded['state_dict'],strict=True)
++                    resume_state=loaded
++                else:
++                    state={key.removeprefix('module.') if hasattr(key,'removeprefix') else key[7:] if key.startswith('module.') else key:value
++                           for key,value in loaded.get('state_dict',loaded).items()}
++                    if cli.allow_unused_bbox_checkpoint:
++                        removed=[key for key in state if key.startswith('bbox_emb.')]
++                        for key in removed: del state[key]
++                        json_write(out/'checkpoint_compatibility.json',dict(ignored_keys=removed,
++                            reason='bbox_emb is absent from exp/b0-repro model and forward; released reference only'))
++                    incompatible=model.load_state_dict(state,strict=False)
++                    if incompatible.unexpected_keys or any(not key.startswith('mask_head.') for key in incompatible.missing_keys):
++                        raise RuntimeError(str(incompatible))
++                record['checkpoint_source_hash']=file_hash(initialization_path)
+             record['init_hash']=tensor_hash(model)
+             rng=torch.get_rng_state().numpy().tobytes()
+             if torch.cuda.is_available():
+@@ -606,7 +659,7 @@ def main():
+             val_loader=DataLoader(Subset(val_set,subset_indices(val_set,count)),batch_size=args.test_batch,
+                                   shuffle=False,num_workers=cli.workers,collate_fn=collate)
+             if cli.stage!='evaluate':
+-                record['checkpoint_path']=train_bounded(model,criterion,train_set,val_loader,args,cli,out,device)
++                record['checkpoint_path']=train_bounded(model,criterion,train_set,val_loader,args,cli,out,device,resume_state)
+             if cli.stage=='overfit':
+                 train_set.is_training=False
+                 overfit_loader=DataLoader(Subset(train_set,subset_indices(train_set,cli.train_clips)),

@@ -1,0 +1,32 @@
+{
+  "tf32_matmul": true,
+  "tf32_cudnn": true,
+  "disabled_repeat": {
+    "pred_actions": 0.0,
+    "pred_activities": 0.0,
+    "membership": 0.0,
+    "actor_embeddings": 0.0
+  },
+  "direct_ones": {
+    "pred_actions": 0.0004925727844238281,
+    "pred_activities": 0.0006322860717773438,
+    "membership": 9.816884994506836e-05,
+    "actor_embeddings": 1.6707926988601685e-05
+  },
+  "sampled_ones_min": 0.9999999403953552,
+  "sampled_ones_max": 1.0,
+  "sampled_ones_max_deviation": 5.960464477539063e-08,
+  "complement_ones": {
+    "pred_actions": 0.0,
+    "pred_activities": 0.0,
+    "membership": 0.0,
+    "actor_embeddings": 0.0
+  },
+  "tf32_disabled_direct_ones": {
+    "pred_actions": 1.9073486328125e-06,
+    "pred_activities": 1.9073486328125e-06,
+    "membership": 2.980232238769531e-07,
+    "actor_embeddings": 5.960464477539063e-08
+  },
+  "gpu_seconds": 6.14359450340271
+}

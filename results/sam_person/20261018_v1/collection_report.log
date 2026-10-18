@@ -1,0 +1,138 @@
+{
+  "paired_checks": [
+    {
+      "stage": "reference",
+      "present": true,
+      "checks": {
+        "base_checkpoint_or_init_hash": true,
+        "config_hash": true,
+        "evaluator_hash": true,
+        "input_manifest_hash": true,
+        "split_hash": true,
+        "seed": true,
+        "effective_batch": true,
+        "steps": true
+      }
+    },
+    {
+      "stage": "overfit",
+      "present": true,
+      "checks": {
+        "base_checkpoint_or_init_hash": true,
+        "config_hash": true,
+        "evaluator_hash": true,
+        "input_manifest_hash": true,
+        "split_hash": true,
+        "seed": true,
+        "effective_batch": true,
+        "steps": true,
+        "sample_order_hash": true
+      }
+    },
+    {
+      "stage": "pilot",
+      "present": true,
+      "checks": {
+        "base_checkpoint_or_init_hash": true,
+        "config_hash": true,
+        "evaluator_hash": true,
+        "input_manifest_hash": true,
+        "split_hash": true,
+        "seed": true,
+        "effective_batch": true,
+        "steps": true,
+        "sample_order_hash": true
+      }
+    },
+    {
+      "stage": "technical_smoke_integrated_in_overfit",
+      "present": true,
+      "checks": {
+        "steps": true,
+        "init_hash": true,
+        "code_hash": true,
+        "sample_order_hash": true
+      }
+    }
+  ],
+  "costs": {
+    "sam_gpu_hours_including_failed_attempts": 0.2683510004149543,
+    "sam_attempted_prompts": 2058,
+    "generation_sessions": [
+      {
+        "status": "complete",
+        "failure_reason": null,
+        "load_seconds": 26.24868319835514,
+        "frames": 8,
+        "peak_memory_bytes": 2895733248
+      },
+      {
+        "status": "failed",
+        "failure_reason": "AssertionError('Invalid device id')",
+        "load_seconds": 4.049011364579201,
+        "frames": 0,
+        "peak_memory_bytes": 374956544
+      },
+      {
+        "status": "interrupted",
+        "failure_reason": "process ended without finalization; elapsed gap and issued prompts conservatively charged",
+        "load_seconds": 5.4544375240802765,
+        "frames": 28,
+        "peak_memory_bytes": null
+      },
+      {
+        "status": "complete",
+        "failure_reason": null,
+        "load_seconds": 4.8746673772111535,
+        "frames": 164,
+        "peak_memory_bytes": 2895733248
+      }
+    ],
+    "cache_bytes": 5660453,
+    "train_gpu_hours_including_evaluation": 0.35844872110419806,
+    "training_ledgers": {
+      "B0": {
+        "seconds": 386.8451943397522,
+        "stages": [],
+        "status": "finished"
+      },
+      "S2F": {
+        "failure_reason": "paired B0 ones gate failed; conservative charge includes recovery gap",
+        "latest_elapsed": 81.16547298431396,
+        "seconds": 897.426607131958,
+        "stages": [],
+        "status": "finished"
+      },
+      "diagnostic": {
+        "scope": "GPU ones diagnosis, physical GPU4",
+        "seconds": 6.14359450340271,
+        "status": "complete"
+      }
+    },
+    "image_encoder_seconds": {
+      "total": 43.508057347498834,
+      "mean": 0.21754028673749418,
+      "median": 0.1236616694368422,
+      "first": 15.914515044540167
+    },
+    "decoder_seconds": {
+      "total": 17.27349483873695,
+      "mean": 0.08636747419368476,
+      "median": 0.0761111699976027,
+      "first": 0.25968381110578775
+    },
+    "read_seconds": {
+      "total": 9.199157900176942,
+      "mean": 0.04599578950088471,
+      "median": 0.03353884490206838,
+      "first": 0.05658232234418392
+    },
+    "write_seconds": {
+      "total": 60.160240459255874,
+      "mean": 0.3008012022962794,
+      "median": 0.06761823920533061,
+      "first": 0.2396819880232215
+    },
+    "decoder_seconds_per_prompt": 0.008409685900066676
+  }
+}

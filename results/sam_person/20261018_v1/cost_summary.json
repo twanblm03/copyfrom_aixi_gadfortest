@@ -1,0 +1,86 @@
+{
+  "accounting": "Cumulative allocated device-wall hours, includes failures, I/O and conservative interruption recovery gaps; not kernel-only time.",
+  "budgets_gpu_hours": {
+    "all_training_evaluation_diagnosis": 2,
+    "generation": 1
+  },
+  "cache_bytes": 5660453,
+  "decoder_seconds": {
+    "first": 0.25968381110578775,
+    "mean": 0.08636747419368476,
+    "median": 0.0761111699976027,
+    "total": 17.27349483873695
+  },
+  "decoder_seconds_per_prompt": 0.008409685900066676,
+  "generation_sessions": [
+    {
+      "failure_reason": null,
+      "frames": 8,
+      "load_seconds": 26.24868319835514,
+      "peak_memory_bytes": 2895733248,
+      "status": "complete"
+    },
+    {
+      "failure_reason": "AssertionError('Invalid device id')",
+      "frames": 0,
+      "load_seconds": 4.049011364579201,
+      "peak_memory_bytes": 374956544,
+      "status": "failed"
+    },
+    {
+      "failure_reason": "process ended without finalization; elapsed gap and issued prompts conservatively charged",
+      "frames": 28,
+      "load_seconds": 5.4544375240802765,
+      "peak_memory_bytes": null,
+      "status": "interrupted"
+    },
+    {
+      "failure_reason": null,
+      "frames": 164,
+      "load_seconds": 4.8746673772111535,
+      "peak_memory_bytes": 2895733248,
+      "status": "complete"
+    }
+  ],
+  "image_encoder_seconds": {
+    "first": 15.914515044540167,
+    "mean": 0.21754028673749418,
+    "median": 0.1236616694368422,
+    "total": 43.508057347498834
+  },
+  "read_seconds": {
+    "first": 0.05658232234418392,
+    "mean": 0.04599578950088471,
+    "median": 0.03353884490206838,
+    "total": 9.199157900176942
+  },
+  "sam_attempted_prompts": 2058,
+  "sam_gpu_hours_including_failed_attempts": 0.2683510004149543,
+  "train_gpu_hours_including_evaluation": 0.9126968222194248,
+  "training_ledgers": {
+    "B0": {
+      "seconds": 1493.0125987529755,
+      "stages": [],
+      "status": "finished"
+    },
+    "S2F": {
+      "failure_reason": "paired B0 ones gate failed; conservative charge includes recovery gap",
+      "latest_elapsed": 81.16547298431396,
+      "seconds": 1786.552366733551,
+      "stages": [],
+      "status": "finished"
+    },
+    "diagnostic": {
+      "scope": "GPU ones diagnosis, physical GPU4",
+      "seconds": 6.14359450340271,
+      "status": "complete"
+    }
+  },
+  "within_budget": true,
+  "write_seconds": {
+    "first": 0.2396819880232215,
+    "mean": 0.3008012022962794,
+    "median": 0.06761823920533061,
+    "total": 60.160240459255874
+  }
+}

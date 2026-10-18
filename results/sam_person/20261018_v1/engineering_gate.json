@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "scope": "engineering conditions for bounded TRAIN->VAL pilot; no claim of accurate segmentation",
+  "qc_sha256": "07284e264e52027c9057cca396ee76e4fe86ad8942bda886c7344cac2873bd36",
+  "cpu_tests_sha256": "8c9f34e786dabed9f8588b422b74eb622c7fea48467dc2086f93eb1e8568b36a",
+  "smoke_visual_review": "smoke_visual_review.json",
+  "full_cache_frames": 200,
+  "actor_records": 2054,
+  "structural_fallback": 0,
+  "independent_pixel_gt": null,
+  "limitations": [
+    "localized neighbor selection, partial body masks, chairs/background fragments retained",
+    "all 83 fixed smoke crops and two five-frame timelines screened by assistant; not independent pixel annotation",
+    "no global coordinate or cache UID permutation observed"
+  ],
+  "full_training_authorized": false,
+  "gpu_constant_interpolation_diagnosis": "gpu_ones_diagnosis.json",
+  "numerical_fix": "constant-preserving linear interpolation plus unchanged B0 zero extrapolation, original TF32 flags retained"
+}

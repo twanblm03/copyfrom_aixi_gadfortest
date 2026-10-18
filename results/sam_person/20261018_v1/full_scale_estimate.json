@@ -1,0 +1,12 @@
+{
+  "source": "existing audited split manifest; full current directory rescan incomplete",
+  "train_clips": 6444,
+  "val_clips": 1386,
+  "train_potential_source_frames": 216740,
+  "val_fixed_source_frames_upper_bound": 6930,
+  "total_frame_upper_bound": 223670,
+  "prompt_upper_bound": 2340076,
+  "observed_cache_bytes": 5660453,
+  "cache_bytes_extrapolation": 6330367612.55,
+  "extrapolation_limits": "same mask compression and actors/frame assumed; excludes logs/checkpoints, derivative caches and full-source overlap audit"
+}

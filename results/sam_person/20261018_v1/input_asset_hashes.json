@@ -1,0 +1,27 @@
+{
+  "tracks_pickle": {
+    "path": "/share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset/cafe/gt_tracks.pkl",
+    "sha256": "98ccd12267bb62fa27040f11876bab5f1d38c96f4544fe552ca6f5dcc55ff072",
+    "bytes": 157118502
+  },
+  "evaluation_gt_text": {
+    "path": "/mzy/copyfrom_aixi_gadfortest/evaluation/gt_tracks.txt",
+    "sha256": "d77a4e3baa51252fd9421a116df4927439a40f92fb8397035269a45ba07b1a17",
+    "bytes": 109254793
+  },
+  "frozen_sampling_split_manifest": {
+    "path": "/mzy/cafe_runs/heatmap/h1_match_full_seed1_resume_epoch7_20261013_193136/run/data_manifest.json",
+    "sha256": "f428e7a08b774fd6f0c9e3ce7402fb6b01846f81902dbabb0166df95c9c0a212",
+    "bytes": 1662844
+  },
+  "qc_manifest": {
+    "path": "/mzy/copyfrom_aixi_gadfortest/outputs/sam_person/20261018_v1/qc_manifest.jsonl",
+    "sha256": "92253a8044305d8dd0f62c4cc558346c10b3e1ba5d496a0641ecaf49e103f4f3",
+    "bytes": 964480
+  },
+  "unchanged_evaluator": {
+    "path": "/mzy/copyfrom_aixi_gadfortest/evaluation/cafe_eval.py",
+    "sha256": "8d7f5d5f2bebaa911e30199036b20fed1cc9d1c31bfebb454b68f1901a50f181",
+    "bytes": 18281
+  }
+}

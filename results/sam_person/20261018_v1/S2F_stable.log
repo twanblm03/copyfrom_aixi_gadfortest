@@ -1,0 +1,41 @@
+cached pilot input (1, 112)
+cached pilot input (1, 438)
+cached pilot input (2, 372)
+cached pilot input (3, 30)
+cached pilot input (4, 353)
+cached pilot input (4, 416)
+cached pilot input (9, 89)
+cached pilot input (10, 324)
+cached pilot input (11, 105)
+cached pilot input (11, 291)
+cached pilot input (12, 374)
+cached pilot input (17, 198)
+cached pilot input (19, 385)
+cached pilot input (20, 0)
+cached pilot input (22, 297)
+cached pilot input (24, 282)
+cached pilot input (13, 82)
+cached pilot input (13, 173)
+cached pilot input (14, 159)
+cached pilot input (14, 258)
+cached pilot input (15, 17)
+cached pilot input (15, 70)
+cached pilot input (16, 60)
+cached pilot input (16, 335)
+STAGE_RESULT S2F reference complete 0
+S2F overfit {'step': 1, 'loss': 1.2581356763839722, 'terms': {'loss_ce': 0.5693061947822571, 'class_error': 23.255813598632812, 'cardinality_error': 10.0, 'loss_group_ce': 0.10710493475198746, 'group_class_error': 28.571426391601562, 'group_cardinality_error': 0.25, 'loss_group_code': 0.07787806540727615, 'loss_consistency': 0.09616708755493164}, 'grad_norm': 34.343427738435786, 'seconds': 0.9909516060724854, 'lr': 1e-05}
+S2F overfit {'step': 10, 'loss': 0.27842724323272705, 'terms': {'loss_ce': 0.049592435359954834, 'class_error': 0.0, 'cardinality_error': 7.25, 'loss_group_ce': 0.009364916943013668, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.034250590950250626, 'loss_consistency': 0.024108469486236572}, 'grad_norm': 6.887516344038133, 'seconds': 0.8339023143053055, 'lr': 1e-05}
+S2F overfit {'step': 20, 'loss': 0.2858961224555969, 'terms': {'loss_ce': 0.006239480338990688, 'class_error': 0.0, 'cardinality_error': 8.75, 'loss_group_ce': 0.00022830965463072062, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.043162643909454346, 'loss_consistency': 0.031807564198970795}, 'grad_norm': 5.485712460366533, 'seconds': 0.8325916351750493, 'lr': 1e-05}
+S2F overfit {'step': 30, 'loss': 0.21405422687530518, 'terms': {'loss_ce': 0.0031128800474107265, 'class_error': 0.0, 'cardinality_error': 8.25, 'loss_group_ce': 0.0020230936352163553, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.038174111396074295, 'loss_consistency': 0.009023856371641159}, 'grad_norm': 13.426063386296496, 'seconds': 0.908317070454359, 'lr': 1e-05}
+S2F overfit {'step': 40, 'loss': 0.2915008068084717, 'terms': {'loss_ce': 0.0031682937406003475, 'class_error': 0.0, 'cardinality_error': 10.0, 'loss_group_ce': 0.0005047589656896889, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05335032194852829, 'loss_consistency': 0.010538077913224697}, 'grad_norm': 3.0984098803961273, 'seconds': 0.8138894336298108, 'lr': 1e-05}
+STAGE_RESULT S2F overfit complete 40
+S2F pilot {'step': 1, 'loss': 0.9093285202980042, 'terms': {'loss_ce': 0.34517931938171387, 'class_error': 11.904762268066406, 'cardinality_error': 8.5, 'loss_group_ce': 0.015626022592186928, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.0681130513548851, 'loss_consistency': 0.1039789542555809}, 'grad_norm': 31.298474451388103, 'seconds': 0.8260421417653561, 'lr': 1e-05}
+S2F pilot {'step': 10, 'loss': 0.2948766052722931, 'terms': {'loss_ce': 0.021345416083931923, 'class_error': 0.0, 'cardinality_error': 6.25, 'loss_group_ce': 0.0013707899488508701, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03327776491641998, 'loss_consistency': 0.05288578197360039}, 'grad_norm': 5.656602294310188, 'seconds': 0.8008012874051929, 'lr': 1e-05}
+S2F pilot {'step': 20, 'loss': 0.2720150649547577, 'terms': {'loss_ce': 0.024551253765821457, 'class_error': 0.0, 'cardinality_error': 7.25, 'loss_group_ce': 0.001801658421754837, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03286031633615494, 'loss_consistency': 0.04068029299378395}, 'grad_norm': 6.14851903667212, 'seconds': 0.8195012817159295, 'lr': 1e-05}
+S2F pilot {'step': 30, 'loss': 0.28276410698890686, 'terms': {'loss_ce': 0.010761501267552376, 'class_error': 0.0, 'cardinality_error': 7.0, 'loss_group_ce': 0.00038905415567569435, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05210188403725624, 'loss_consistency': 0.0055520557798445225}, 'grad_norm': 4.147293825715506, 'seconds': 0.9256964679807425, 'lr': 1e-05}
+S2F pilot {'step': 40, 'loss': 0.25876909494400024, 'terms': {'loss_ce': 0.004233016632497311, 'class_error': 0.0, 'cardinality_error': 6.0, 'loss_group_ce': 0.0003439193533267826, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.045749224722385406, 'loss_consistency': 0.01272302120923996}, 'grad_norm': 1.7235610285118594, 'seconds': 0.8027217462658882, 'lr': 1e-05}
+S2F pilot {'step': 50, 'loss': 0.24569827318191528, 'terms': {'loss_ce': 0.002123833866789937, 'class_error': 0.0, 'cardinality_error': 8.0, 'loss_group_ce': 0.00030592732946388423, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.0425361730158329, 'loss_consistency': 0.015293819829821587}, 'grad_norm': 1.8578375246307808, 'seconds': 0.9089095322415233, 'lr': 1e-05}
+S2F pilot {'step': 60, 'loss': 0.26005733013153076, 'terms': {'loss_ce': 0.002676083706319332, 'class_error': 0.0, 'cardinality_error': 9.5, 'loss_group_ce': 0.0005753290024586022, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04968136548995972, 'loss_consistency': 0.004199552349746227}, 'grad_norm': 1.0470580128778875, 'seconds': 0.8228444615378976, 'lr': 1e-05}
+S2F pilot {'step': 70, 'loss': 0.21179547905921936, 'terms': {'loss_ce': 0.0016381572932004929, 'class_error': 0.0, 'cardinality_error': 8.5, 'loss_group_ce': 0.0003944110358133912, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03884190320968628, 'loss_consistency': 0.0077766962349414825}, 'grad_norm': 2.470942893398583, 'seconds': 0.8331872904673219, 'lr': 1e-05}
+S2F pilot {'step': 80, 'loss': 0.22489604353904724, 'terms': {'loss_ce': 0.001381994690746069, 'class_error': 0.0, 'cardinality_error': 8.25, 'loss_group_ce': 0.00023024309484753758, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.040560029447078705, 'loss_consistency': 0.010241830721497536}, 'grad_norm': 0.7349743629639761, 'seconds': 0.8186002718284726, 'lr': 1e-05}
+STAGE_RESULT S2F pilot complete 80

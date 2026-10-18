@@ -1,0 +1,6 @@
+....full-model ones max errors {'pred_actions': 0.0, 'pred_activities': 0.0, 'membership': 0.0, 'actor_embeddings': 0.0}
+..
+----------------------------------------------------------------------
+Ran 6 tests in 2.733s
+
+OK

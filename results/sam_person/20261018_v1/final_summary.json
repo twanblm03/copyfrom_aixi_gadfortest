@@ -1,0 +1,368 @@
+{
+  "all_optimizer_updates_including_superseded": {
+    "B0": 420,
+    "S2F": 423
+  },
+  "cohorts": {
+    "paired_extended": {
+      "delta_S2F_minus_B0": {
+        "group_mAP_0.5": -3.6463844797178098,
+        "group_mAP_1.0": -3.5284391534391535,
+        "membership_f1": -0.046902550840484336,
+        "outlier_mIoU": -2.4627976190476133
+      },
+      "error_diagnostics": {
+        "B0": {
+          "exact_compatible_gt_sets": 8,
+          "gt_groups": 26,
+          "gt_groups_by_class": {
+            "1": 1,
+            "2": 1,
+            "3": 6,
+            "4": 7,
+            "5": 5,
+            "6": 6
+          },
+          "high_confidence_incompatible": 2,
+          "matched_extra_members": 19,
+          "matched_group_activity_errors": 10,
+          "matched_missing_members": 21,
+          "merge_overlap_events": 2,
+          "pred_groups": 19,
+          "split_overlap_events": 1
+        },
+        "S2F": {
+          "exact_compatible_gt_sets": 7,
+          "gt_groups": 26,
+          "gt_groups_by_class": {
+            "1": 1,
+            "2": 1,
+            "3": 6,
+            "4": 7,
+            "5": 5,
+            "6": 6
+          },
+          "high_confidence_incompatible": 3,
+          "matched_extra_members": 19,
+          "matched_group_activity_errors": 10,
+          "matched_missing_members": 28,
+          "merge_overlap_events": 1,
+          "pred_groups": 19,
+          "split_overlap_events": 0
+        }
+      },
+      "metrics": {
+        "B0": {
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            71.42857142857143,
+            80.0,
+            45.83333333333333
+          ],
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            16.666666666666664,
+            11.428571428571429,
+            40.0,
+            22.916666666666664
+          ],
+          "group_mAP_0.5": 38.43253968253968,
+          "group_mAP_1.0": 15.168650793650793,
+          "membership_f1": 0.7872340425531915,
+          "membership_precision": 0.7956989247311828,
+          "membership_recall": 0.7789473684210526,
+          "outlier_mIoU": 64.61918290043289
+        },
+        "S2F": {
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            66.66666666666666,
+            57.14285714285714,
+            40.0,
+            44.907407407407405
+          ],
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            14.285714285714285,
+            0.0,
+            22.22222222222222
+          ],
+          "group_mAP_0.5": 34.78615520282187,
+          "group_mAP_1.0": 11.64021164021164,
+          "membership_f1": 0.7403314917127072,
+          "membership_precision": 0.7790697674418605,
+          "membership_recall": 0.7052631578947368,
+          "outlier_mIoU": 62.156385281385276
+        }
+      },
+      "seed": 1,
+      "steps": 300,
+      "train_clips": 24,
+      "val_clips": 16
+    },
+    "paired_stable": {
+      "delta_S2F_minus_B0": {
+        "group_mAP_0.5": 1.3888888888888857,
+        "group_mAP_1.0": -7.638888888888888,
+        "membership_f1": -0.01876430205949664,
+        "outlier_mIoU": 5.228174603174594
+      },
+      "error_diagnostics": {
+        "B0": {
+          "exact_compatible_gt_sets": 4,
+          "gt_groups": 13,
+          "gt_groups_by_class": {
+            "3": 3,
+            "4": 3,
+            "5": 4,
+            "6": 3
+          },
+          "high_confidence_incompatible": 1,
+          "matched_extra_members": 11,
+          "matched_group_activity_errors": 5,
+          "matched_missing_members": 12,
+          "merge_overlap_events": 1,
+          "pred_groups": 10,
+          "split_overlap_events": 0
+        },
+        "S2F": {
+          "exact_compatible_gt_sets": 2,
+          "gt_groups": 13,
+          "gt_groups_by_class": {
+            "3": 3,
+            "4": 3,
+            "5": 4,
+            "6": 3
+          },
+          "high_confidence_incompatible": 0,
+          "matched_extra_members": 10,
+          "matched_group_activity_errors": 4,
+          "matched_missing_members": 14,
+          "merge_overlap_events": 2,
+          "pred_groups": 11,
+          "split_overlap_events": 1
+        }
+      },
+      "metrics": {
+        "B0": {
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            66.66666666666666,
+            75.0,
+            44.44444444444444
+          ],
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            0.0,
+            66.66666666666666,
+            12.5,
+            11.11111111111111
+          ],
+          "group_mAP_0.5": 36.574074074074076,
+          "group_mAP_1.0": 15.046296296296296,
+          "membership_f1": 0.7578947368421053,
+          "membership_precision": 0.7659574468085106,
+          "membership_recall": 0.75,
+          "outlier_mIoU": 59.176587301587304
+        },
+        "S2F": {
+          "group_APs_0.5": [
+            0.0,
+            0.0,
+            66.66666666666666,
+            66.66666666666666,
+            50.0,
+            44.44444444444444
+          ],
+          "group_APs_1.0": [
+            0.0,
+            0.0,
+            33.33333333333333,
+            0.0,
+            0.0,
+            11.11111111111111
+          ],
+          "group_mAP_0.5": 37.96296296296296,
+          "group_mAP_1.0": 7.407407407407407,
+          "membership_f1": 0.7391304347826086,
+          "membership_precision": 0.7727272727272727,
+          "membership_recall": 0.7083333333333334,
+          "outlier_mIoU": 64.4047619047619
+        }
+      },
+      "seed": 1,
+      "steps": 80,
+      "train_clips": 16,
+      "val_clips": 8
+    }
+  },
+  "costs": {
+    "accounting": "Cumulative allocated device-wall hours, includes failures, I/O and conservative interruption recovery gaps; not kernel-only time.",
+    "budgets_gpu_hours": {
+      "all_training_evaluation_diagnosis": 2,
+      "generation": 1
+    },
+    "cache_bytes": 5660453,
+    "decoder_seconds": {
+      "first": 0.25968381110578775,
+      "mean": 0.08636747419368476,
+      "median": 0.0761111699976027,
+      "total": 17.27349483873695
+    },
+    "decoder_seconds_per_prompt": 0.008409685900066676,
+    "generation_sessions": [
+      {
+        "failure_reason": null,
+        "frames": 8,
+        "load_seconds": 26.24868319835514,
+        "peak_memory_bytes": 2895733248,
+        "status": "complete"
+      },
+      {
+        "failure_reason": "AssertionError('Invalid device id')",
+        "frames": 0,
+        "load_seconds": 4.049011364579201,
+        "peak_memory_bytes": 374956544,
+        "status": "failed"
+      },
+      {
+        "failure_reason": "process ended without finalization; elapsed gap and issued prompts conservatively charged",
+        "frames": 28,
+        "load_seconds": 5.4544375240802765,
+        "peak_memory_bytes": null,
+        "status": "interrupted"
+      },
+      {
+        "failure_reason": null,
+        "frames": 164,
+        "load_seconds": 4.8746673772111535,
+        "peak_memory_bytes": 2895733248,
+        "status": "complete"
+      }
+    ],
+    "image_encoder_seconds": {
+      "first": 15.914515044540167,
+      "mean": 0.21754028673749418,
+      "median": 0.1236616694368422,
+      "total": 43.508057347498834
+    },
+    "read_seconds": {
+      "first": 0.05658232234418392,
+      "mean": 0.04599578950088471,
+      "median": 0.03353884490206838,
+      "total": 9.199157900176942
+    },
+    "sam_attempted_prompts": 2058,
+    "sam_gpu_hours_including_failed_attempts": 0.2683510004149543,
+    "train_gpu_hours_including_evaluation": 0.9126968222194248,
+    "training_ledgers": {
+      "B0": {
+        "seconds": 1493.0125987529755,
+        "stages": [],
+        "status": "finished"
+      },
+      "S2F": {
+        "failure_reason": "paired B0 ones gate failed; conservative charge includes recovery gap",
+        "latest_elapsed": 81.16547298431396,
+        "seconds": 1786.552366733551,
+        "stages": [],
+        "status": "finished"
+      },
+      "diagnostic": {
+        "scope": "GPU ones diagnosis, physical GPU4",
+        "seconds": 6.14359450340271,
+        "status": "complete"
+      }
+    },
+    "within_budget": true,
+    "write_seconds": {
+      "first": 0.2396819880232215,
+      "mean": 0.3008012022962794,
+      "median": 0.06761823920533061,
+      "total": 60.160240459255874
+    }
+  },
+  "decision": "No evidence of downstream benefit for current SAM-v1 box-only MaskRoI; do not start four-GPU full training.",
+  "full_training_run": false,
+  "limits": [
+    "one seed; developmental TRAIN->VAL subsets and selected warm start",
+    "original evaluator has set-score sorting/order sensitivity; unchanged, deterministic paired export order",
+    "full current split rescan and global image-content duplicate audit incomplete",
+    "no independent person pixel GT, no statistical significance or full-dataset score",
+    "80/300 diagnostics use different cohort and update count; not an isolated duration ablation"
+  ],
+  "overfit_updates_per_variant_accepted": 40,
+  "own_gpu_training_complete": true,
+  "pilot_updates_per_variant": 380,
+  "qc_all": {
+    "attempted": 2054,
+    "dice": null,
+    "failed": 0,
+    "fallback_rate": 0.0,
+    "feature_grid_empty": 0,
+    "pixel_iou": null,
+    "processing_coverage": 1.0,
+    "raw_success": 2054,
+    "raw_success_rate": 1.0,
+    "total": 2054,
+    "unprocessed": 0,
+    "usable_coverage": 1.0
+  },
+  "qc_scale_buckets": {
+    "large": {
+      "attempted": 311,
+      "dice": null,
+      "failed": 0,
+      "fallback_rate": 0.0,
+      "feature_grid_empty": 0,
+      "pixel_iou": null,
+      "processing_coverage": 1.0,
+      "raw_success": 311,
+      "raw_success_rate": 1.0,
+      "total": 311,
+      "unprocessed": 0,
+      "usable_coverage": 1.0
+    },
+    "medium": {
+      "attempted": 1517,
+      "dice": null,
+      "failed": 0,
+      "fallback_rate": 0.0,
+      "feature_grid_empty": 0,
+      "pixel_iou": null,
+      "processing_coverage": 1.0,
+      "raw_success": 1517,
+      "raw_success_rate": 1.0,
+      "total": 1517,
+      "unprocessed": 0,
+      "usable_coverage": 1.0
+    },
+    "small": {
+      "attempted": 226,
+      "dice": null,
+      "failed": 0,
+      "fallback_rate": 0.0,
+      "feature_grid_empty": 0,
+      "pixel_iou": null,
+      "processing_coverage": 1.0,
+      "raw_success": 226,
+      "raw_success_rate": 1.0,
+      "total": 226,
+      "unprocessed": 0,
+      "usable_coverage": 1.0
+    }
+  },
+  "superseded_smoke_updates": {
+    "B0": 0,
+    "S2F": 3
+  }
+}

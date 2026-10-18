@@ -1,0 +1,73 @@
+cached pilot input (1, 112)
+cached pilot input (1, 438)
+cached pilot input (2, 360)
+cached pilot input (2, 372)
+cached pilot input (3, 30)
+cached pilot input (3, 228)
+cached pilot input (4, 353)
+cached pilot input (4, 416)
+cached pilot input (9, 20)
+cached pilot input (9, 89)
+cached pilot input (10, 324)
+cached pilot input (10, 357)
+cached pilot input (11, 105)
+cached pilot input (11, 291)
+cached pilot input (12, 77)
+cached pilot input (12, 374)
+cached pilot input (17, 198)
+cached pilot input (18, 192)
+cached pilot input (19, 385)
+cached pilot input (20, 0)
+cached pilot input (21, 131)
+cached pilot input (22, 297)
+cached pilot input (23, 273)
+cached pilot input (24, 282)
+cached pilot input (13, 82)
+cached pilot input (13, 164)
+cached pilot input (13, 173)
+cached pilot input (13, 197)
+cached pilot input (14, 159)
+cached pilot input (14, 182)
+cached pilot input (14, 258)
+cached pilot input (14, 306)
+cached pilot input (15, 17)
+cached pilot input (15, 56)
+cached pilot input (15, 70)
+cached pilot input (15, 284)
+cached pilot input (16, 60)
+cached pilot input (16, 123)
+cached pilot input (16, 259)
+cached pilot input (16, 335)
+STAGE_RESULT B0 reference complete 0
+B0 pilot {'step': 1, 'loss': 0.2383851706981659, 'terms': {'loss_ce': 0.0023923167027533054, 'class_error': 0.0, 'cardinality_error': 7.75, 'loss_group_ce': 0.001895052962936461, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04142367094755173, 'loss_consistency': 0.013489723205566406}, 'grad_norm': 0.9297481926483849, 'seconds': 1.3675156831741333, 'lr': 1e-05}
+B0 pilot {'step': 10, 'loss': 0.17061814665794373, 'terms': {'loss_ce': 0.00022450683172792196, 'class_error': 0.0, 'cardinality_error': 7.5, 'loss_group_ce': 0.00011597233969951048, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03160758689045906, 'loss_consistency': 0.00611987104639411}, 'grad_norm': 0.2954415838972617, 'seconds': 0.8171750269830227, 'lr': 1e-05}
+B0 pilot {'step': 20, 'loss': 0.2835978865623474, 'terms': {'loss_ce': 0.0012986178044229746, 'class_error': 0.0, 'cardinality_error': 7.25, 'loss_group_ce': 0.0005932450294494629, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05505663901567459, 'loss_consistency': 0.003211419330909848}, 'grad_norm': 0.6643316012607497, 'seconds': 0.8073425525799394, 'lr': 1e-05}
+B0 pilot {'step': 30, 'loss': 0.25808051228523254, 'terms': {'loss_ce': 0.00037556583993136883, 'class_error': 0.0, 'cardinality_error': 9.5, 'loss_group_ce': 0.0004815706342924386, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.049692727625370026, 'loss_consistency': 0.004379877820611}, 'grad_norm': 0.16962110252431287, 'seconds': 0.8469983078539371, 'lr': 1e-05}
+B0 pilot {'step': 40, 'loss': 0.2392888218164444, 'terms': {'loss_ce': 0.00011994394299108535, 'class_error': 0.0, 'cardinality_error': 8.75, 'loss_group_ce': 5.862929901923053e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04472052678465843, 'loss_consistency': 0.007753802463412285}, 'grad_norm': 0.15793987513991387, 'seconds': 0.8352558612823486, 'lr': 1e-05}
+B0 pilot {'step': 50, 'loss': 0.20335152745246887, 'terms': {'loss_ce': 0.00016972234880086035, 'class_error': 0.0, 'cardinality_error': 8.25, 'loss_group_ce': 0.00015951773093547672, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.038793325424194336, 'loss_consistency': 0.004527827724814415}, 'grad_norm': 0.2114100162701129, 'seconds': 0.8165659261867404, 'lr': 1e-05}
+B0 pilot {'step': 60, 'loss': 0.2691196799278259, 'terms': {'loss_ce': 0.00029469505534507334, 'class_error': 0.0, 'cardinality_error': 10.25, 'loss_group_ce': 9.808505274122581e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05275455117225647, 'loss_consistency': 0.0024770693853497505}, 'grad_norm': 0.08296636879435411, 'seconds': 0.8462345879524946, 'lr': 1e-05}
+B0 pilot {'step': 70, 'loss': 0.1955646425485611, 'terms': {'loss_ce': 2.8812899472541176e-05, 'class_error': 0.0, 'cardinality_error': 6.25, 'loss_group_ce': 0.00011040234676329419, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03750570863485336, 'loss_consistency': 0.0039484333246946335}, 'grad_norm': 0.5518926977271972, 'seconds': 0.8816304160282016, 'lr': 1e-05}
+B0 pilot {'step': 80, 'loss': 0.23790845274925232, 'terms': {'loss_ce': 0.0002553535159677267, 'class_error': 0.0, 'cardinality_error': 8.25, 'loss_group_ce': 0.00011725496733561158, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.046521153301000595, 'loss_consistency': 0.0024650362320244312}, 'grad_norm': 0.06536719770052367, 'seconds': 0.8177426187321544, 'lr': 1e-05}
+B0 pilot {'step': 90, 'loss': 0.1764567792415619, 'terms': {'loss_ce': 0.00010761341400211677, 'class_error': 0.0, 'cardinality_error': 7.5, 'loss_group_ce': 6.81018500472419e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03431620076298714, 'loss_consistency': 0.002350031863898039}, 'grad_norm': 0.07560797553009324, 'seconds': 0.8839970594272017, 'lr': 1e-05}
+B0 pilot {'step': 100, 'loss': 0.2795661389827728, 'terms': {'loss_ce': 8.834083564579487e-05, 'class_error': 0.0, 'cardinality_error': 10.0, 'loss_group_ce': 5.710962068405934e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05385962501168251, 'loss_consistency': 0.0050612748600542545}, 'grad_norm': 0.10713484472580673, 'seconds': 0.8916047243401408, 'lr': 1e-05}
+B0 pilot {'step': 110, 'loss': 0.26525455713272095, 'terms': {'loss_ce': 0.00030677710310555995, 'class_error': 0.0, 'cardinality_error': 9.25, 'loss_group_ce': 0.0001049864586093463, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05196606367826462, 'loss_consistency': 0.0025062451604753733}, 'grad_norm': 0.04942121274554993, 'seconds': 0.8807024974375963, 'lr': 1e-05}
+B0 pilot {'step': 120, 'loss': 0.275861531496048, 'terms': {'loss_ce': 0.000151627988088876, 'class_error': 0.0, 'cardinality_error': 8.25, 'loss_group_ce': 0.00039334050961770117, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.05357827618718147, 'loss_consistency': 0.003712594974786043}, 'grad_norm': 0.5890563676914639, 'seconds': 0.7432939922437072, 'lr': 1e-05}
+B0 pilot {'step': 130, 'loss': 0.2356456220149994, 'terms': {'loss_ce': 0.00011652116518234834, 'class_error': 0.0, 'cardinality_error': 9.0, 'loss_group_ce': 6.189443956827745e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.0460207425057888, 'loss_consistency': 0.0026817440520972013}, 'grad_norm': 0.06381208450744717, 'seconds': 0.7758016334846616, 'lr': 1e-05}
+B0 pilot {'step': 140, 'loss': 0.10837341099977493, 'terms': {'loss_ce': 2.9013934181421064e-05, 'class_error': 0.0, 'cardinality_error': 6.0, 'loss_group_ce': 0.0004340892191976309, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.020682591944932938, 'loss_consistency': 0.00224867626093328}, 'grad_norm': 0.0953312265149881, 'seconds': 0.7882668292149901, 'lr': 1e-05}
+B0 pilot {'step': 150, 'loss': 0.25518640875816345, 'terms': {'loss_ce': 0.00014206598279997706, 'class_error': 0.0, 'cardinality_error': 9.5, 'loss_group_ce': 0.0005234574782662094, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.049774982035160065, 'loss_consistency': 0.002822994953021407}, 'grad_norm': 0.17596126807613335, 'seconds': 0.7726640086621046, 'lr': 1e-05}
+B0 pilot {'step': 160, 'loss': 0.16623537242412567, 'terms': {'loss_ce': 6.313287303783e-05, 'class_error': 0.0, 'cardinality_error': 7.25, 'loss_group_ce': 0.0002825921110343188, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.03217651695013046, 'loss_consistency': 0.0025035261642187834}, 'grad_norm': 0.049750989821107955, 'seconds': 0.7753393035382032, 'lr': 1e-05}
+B0 pilot {'step': 170, 'loss': 0.22978557646274567, 'terms': {'loss_ce': 4.403267303132452e-05, 'class_error': 0.0, 'cardinality_error': 8.75, 'loss_group_ce': 0.0018418356776237488, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04319676011800766, 'loss_consistency': 0.005957951303571463}, 'grad_norm': 0.22012247684260328, 'seconds': 0.816383371129632, 'lr': 1e-05}
+B0 pilot {'step': 180, 'loss': 0.1365835815668106, 'terms': {'loss_ce': 3.6081579310121015e-05, 'class_error': 0.0, 'cardinality_error': 6.5, 'loss_group_ce': 0.0002864775015041232, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.024843839928507805, 'loss_consistency': 0.006020913366228342}, 'grad_norm': 0.08362996114762432, 'seconds': 0.8066327599808574, 'lr': 1e-05}
+B0 pilot {'step': 190, 'loss': 0.24170559644699097, 'terms': {'loss_ce': 0.0001488935959059745, 'class_error': 0.0, 'cardinality_error': 9.0, 'loss_group_ce': 0.00013790348020847887, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.046959228813648224, 'loss_consistency': 0.0033113311510533094}, 'grad_norm': 0.08661100074945058, 'seconds': 0.8807946452870965, 'lr': 1e-05}
+B0 pilot {'step': 200, 'loss': 0.27456897497177124, 'terms': {'loss_ce': 0.00013110495638102293, 'class_error': 0.0, 'cardinality_error': 9.75, 'loss_group_ce': 6.0434904298745096e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.053319185972213745, 'loss_consistency': 0.0038907574489712715}, 'grad_norm': 0.09252409965578615, 'seconds': 0.8101034555584192, 'lr': 1e-05}
+B0 pilot {'step': 210, 'loss': 0.27142107486724854, 'terms': {'loss_ce': 7.918175833765417e-05, 'class_error': 0.0, 'cardinality_error': 10.25, 'loss_group_ce': 4.371244358480908e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.053635649383068085, 'loss_consistency': 0.0015599534381181002}, 'grad_norm': 0.04339584927765048, 'seconds': 0.9160171858966351, 'lr': 1e-05}
+B0 pilot {'step': 220, 'loss': 0.22516576945781708, 'terms': {'loss_ce': 7.382414332823828e-05, 'class_error': 0.0, 'cardinality_error': 7.0, 'loss_group_ce': 0.0002494735235814005, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04220855236053467, 'loss_consistency': 0.006899855099618435}, 'grad_norm': 0.6295604585503103, 'seconds': 0.9690475082024932, 'lr': 1e-05}
+B0 pilot {'step': 230, 'loss': 0.1317540854215622, 'terms': {'loss_ce': 2.5748109692358412e-05, 'class_error': 0.0, 'cardinality_error': 5.5, 'loss_group_ce': 6.042518361937255e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.025205975398421288, 'loss_consistency': 0.0028190179727971554}, 'grad_norm': 0.0632861314855679, 'seconds': 0.9737982200458646, 'lr': 1e-05}
+B0 pilot {'step': 240, 'loss': 0.24408389627933502, 'terms': {'loss_ce': 0.00011782190995290875, 'class_error': 0.0, 'cardinality_error': 9.25, 'loss_group_ce': 5.527026587515138e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.0482231080532074, 'loss_consistency': 0.0013976342743262649}, 'grad_norm': 0.038452977393362446, 'seconds': 0.807574744336307, 'lr': 1e-05}
+B0 pilot {'step': 250, 'loss': 0.1816742718219757, 'terms': {'loss_ce': 6.405514432117343e-05, 'class_error': 0.0, 'cardinality_error': 8.0, 'loss_group_ce': 4.628364695236087e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.035530589520931244, 'loss_consistency': 0.001955487532541156}, 'grad_norm': 0.07620294081581724, 'seconds': 0.9179535238072276, 'lr': 1e-05}
+B0 pilot {'step': 260, 'loss': 0.23307682573795319, 'terms': {'loss_ce': 8.009902376215905e-05, 'class_error': 0.0, 'cardinality_error': 8.75, 'loss_group_ce': 3.3732674637576565e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.045353103429079056, 'loss_consistency': 0.0030987439677119255}, 'grad_norm': 0.07113613964609729, 'seconds': 0.7982365190982819, 'lr': 1e-05}
+B0 pilot {'step': 270, 'loss': 0.1472623646259308, 'terms': {'loss_ce': 0.00014201652084011585, 'class_error': 0.0, 'cardinality_error': 7.0, 'loss_group_ce': 0.00024354492779821157, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.0286436527967453, 'loss_consistency': 0.0018292663153260946}, 'grad_norm': 0.07038092272491588, 'seconds': 0.9062248952686787, 'lr': 1e-05}
+B0 pilot {'step': 280, 'loss': 0.25471705198287964, 'terms': {'loss_ce': 0.000150722757098265, 'class_error': 0.0, 'cardinality_error': 9.5, 'loss_group_ce': 5.0935912440763786e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.0504208542406559, 'loss_consistency': 0.0012055521365255117}, 'grad_norm': 0.02808843069270459, 'seconds': 0.8487194972112775, 'lr': 1e-05}
+B0 pilot {'step': 290, 'loss': 0.24938829243183136, 'terms': {'loss_ce': 4.375956632429734e-05, 'class_error': 0.0, 'cardinality_error': 9.5, 'loss_group_ce': 3.821950303972699e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.04939781501889229, 'loss_consistency': 0.001158617902547121}, 'grad_norm': 0.03271946192945181, 'seconds': 0.796311873011291, 'lr': 1e-05}
+B0 pilot {'step': 300, 'loss': 0.21854202449321747, 'terms': {'loss_ce': 0.00033212127164006233, 'class_error': 0.0, 'cardinality_error': 8.75, 'loss_group_ce': 5.7037395890802145e-05, 'group_class_error': 0.0, 'group_cardinality_error': 0.0, 'loss_group_code': 0.042980290949344635, 'loss_consistency': 0.001625710166990757}, 'grad_norm': 0.0676958600588009, 'seconds': 0.9268751805648208, 'lr': 1e-05}
+STAGE_RESULT B0 pilot complete 300

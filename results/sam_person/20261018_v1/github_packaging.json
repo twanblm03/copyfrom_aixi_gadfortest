@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-18",
+  "branch": "exp/cafe-sam-person-mask-20261018",
+  "base_revision": "33ca78cffd46d3bc50b7d3515ede28f70de842be",
+  "server_frozen_source_hash": "e2aa8527641ae97b13215f89d95c5cc8076a32c7e9e552bed3f7dd0152d65f94",
+  "active_training_implementation_unchanged": {
+    "dataloader/cafe.py": true,
+    "models/b0_repro.py": true,
+    "models/sam_roi.py": true,
+    "util/sam_person.py": true,
+    "tools/sam_person_masks.py": true,
+    "tools/run_sam_person_pilot.py": true
+  },
+  "baseline_helpers_ast_equal_to_base": true,
+  "other_uncommitted_changes_applied_to_active_source": false,
+  "packaging_changes": [
+    "report local links point to tracked results bundle",
+    "active equivalence test pins pre-SAM B0 revision",
+    "portable CPU-only final result collector added",
+    "historical source snapshots retained separately",
+    "recorded evidence disables Git newline conversion to preserve checksums"
+  ],
+  "excluded": [
+    "dataset",
+    "model checkpoints",
+    "raw binary mask cache",
+    "original JPEG copies",
+    "environments"
+  ],
+  "artifact_files_before_packaging_metadata": 652,
+  "artifact_bytes_before_packaging_metadata": 30444552,
+  "gpu_training_started_for_packaging": false
+}

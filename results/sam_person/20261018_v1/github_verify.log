@@ -1,0 +1,17 @@
+{
+  "original_workspace_preserved": true,
+  "active_other_work_not_included": true,
+  "packaged_results_equal_server_results": true,
+  "trained_implementation_unchanged": true,
+  "historical_source_snapshot_hashes_match": true,
+  "baseline_test_revision_pinned": "33ca78cffd46d3bc50b7d3515ede28f70de842be",
+  "local_markdown_links_checked": 33,
+  "missing_local_links": [],
+  "gallery_image_links_resolve": true,
+  "prohibited_files": [],
+  "credential_format_matches": [],
+  "artifact_file_count": 657,
+  "artifact_bytes": 30455939,
+  "cpu_tests": "6 passed; see github_cpu_acceptance.log",
+  "new_gpu_runs": 0
+}

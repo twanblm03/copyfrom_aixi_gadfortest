@@ -36,3 +36,16 @@ result/
 /.venv/
 /Dataset
 /results/
+
+# Version only the reviewed, lightweight SAM report bundle.
+!/results/
+/results/*
+!/results/sam_person/
+/results/sam_person/*
+!/results/sam_person/run_registry.csv
+!/results/sam_person/run_registry.json
+!/results/sam_person/20261018_v1/
+!/results/sam_person/20261018_v1/**/*.log
+/results/sam_person/20261018_v1/cache/
+/results/sam_person/20261018_v1/smoke_originals/
+/results/sam_person/20261018_v1/**/checkpoints/

@@ -1,0 +1,17 @@
+{
+  "segment_anything/__init__.py": "c8d8eb649610b2d51f138481a89617a3dcb61106465121dcb1c2f23affc84c30",
+  "segment_anything/automatic_mask_generator.py": "71c698d2b6cbf5a62eafa5f12106fdf3bff676102adf1aed2287df3b3990b4e0",
+  "segment_anything/build_sam.py": "77bc4faf728118625ddd184dc4e6375bd1b5c636fc66fb429f9fc5276f331cc5",
+  "segment_anything/modeling/__init__.py": "47f6363b86c0bfaa7a6abf723975136d17fae4a5f002d2814a5cce8834d18980",
+  "segment_anything/modeling/common.py": "59a53bfa5d0a4d446df7f2bb57d2e95808b130601592b934600fb663d256ce17",
+  "segment_anything/modeling/image_encoder.py": "1665ada2902722c9a8cd566c840e324d623ef2b12f7d9ae9f38b24aed0e39886",
+  "segment_anything/modeling/mask_decoder.py": "6a2455e990515c67a061187c92c236b879b189f21ef6ebfce1627cae9a6b2f93",
+  "segment_anything/modeling/prompt_encoder.py": "bd8f2f5903f0647f55c21c608bcbb334eec2901ebe76aa41061b1c513df4a06f",
+  "segment_anything/modeling/sam.py": "2d501173b7345f6829f745a2ade240c98026f6b3237bf6cf8e9473405e86c54e",
+  "segment_anything/modeling/transformer.py": "566a8f6db8b608398de939548bd0f485b21752fda2bdda36900e6444ef938d11",
+  "segment_anything/predictor.py": "ab66c29ac0b5b204d23997ef49d8a2476f71b596ce97e35efbf116cfc2118fce",
+  "segment_anything/utils/__init__.py": "34bd8069c54764e7b8d73a78905dbe6467140a2f73170875128f6ca4d8cdd0aa",
+  "segment_anything/utils/amg.py": "5c10f8dd63facb642ff090f61426b35b3c6c3a07e72839595cb04d74828b1d39",
+  "segment_anything/utils/onnx.py": "b4410ac1dc9a7bb3a09827520fa08454f9b397608775e2fe4ebfb7c8dbb02666",
+  "segment_anything/utils/transforms.py": "26a649f2bca8a4a24b4d56617487a9a54c4279e559b2b813c9de38f58a60107c"
+}

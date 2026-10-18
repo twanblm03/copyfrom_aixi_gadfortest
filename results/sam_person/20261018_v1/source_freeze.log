@@ -1,0 +1,2 @@
+source hash cec0454b626af240decfc6c714667d08fa2511d6743cd85b439774d777ebd5f7
+{'classes': ['Eating/Drinking', 'Fighting', 'Ordering', 'Queueing', 'TakingSelfie', 'Working/Studying'], 'individual_annotation_rows': 189, 'multi_group_clips': 23, 'unique_source_keys': 200, 'unique_image_content_hashes': 200, 'provenance': 'annotation labels used only for coverage audit; not provider or feature selection'}

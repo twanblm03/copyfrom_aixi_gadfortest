@@ -1,0 +1,6 @@
+{
+  "method": "reverse the five documented numerical-fix changes from the next source snapshot; manifest SHA256 exactly matches failed run config_actual.json",
+  "expected": "1bb6be87df7ec16a23178ef7538904665303bb42cfe02af5529ea77e3bd22a97",
+  "actual": "1bb6be87df7ec16a23178ef7538904665303bb42cfe02af5529ea77e3bd22a97",
+  "verified": true
+}

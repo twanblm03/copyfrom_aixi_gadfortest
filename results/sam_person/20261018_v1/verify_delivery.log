@@ -1,0 +1,24 @@
+{
+  "source_manifest_delivery_matches": true,
+  "user_initial_heatmap_diff_preserved": true,
+  "original_cafe_crlf_count": 321,
+  "current_cafe_crlf_count": 324,
+  "whitespace_check": "git -c core.whitespace=cr-at-eol diff --check -- dataloader/cafe.py models/b0_repro.py",
+  "whitespace_check_returncode": 0,
+  "whitespace_check_output": "",
+  "note": "cafe.py retained original CRLF; plain git diff --check reports CR as trailing whitespace on added lines.",
+  "own_experiment_processes_remaining": [],
+  "report_missing_local_links": [],
+  "report_local_links_checked": 25,
+  "accepted_stage_records": 10,
+  "registry_records": 17,
+  "actor_records": 2054,
+  "raw_cache_frames": 200,
+  "accepted_prediction_checksums_match": true,
+  "all_fairness_checks_passed": true,
+  "within_all_gpu_budgets": true,
+  "all_optimizer_updates_including_superseded": {
+    "B0": 420,
+    "S2F": 423
+  }
+}

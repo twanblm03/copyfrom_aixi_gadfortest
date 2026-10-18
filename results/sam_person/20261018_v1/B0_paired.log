@@ -1,0 +1,32 @@
+cached pilot input (1, 112)
+cached pilot input (1, 438)
+cached pilot input (2, 372)
+cached pilot input (3, 30)
+cached pilot input (4, 353)
+cached pilot input (4, 416)
+cached pilot input (9, 89)
+cached pilot input (10, 324)
+cached pilot input (11, 105)
+cached pilot input (11, 291)
+cached pilot input (12, 374)
+cached pilot input (17, 198)
+cached pilot input (19, 385)
+cached pilot input (20, 0)
+cached pilot input (22, 297)
+cached pilot input (24, 282)
+cached pilot input (13, 82)
+cached pilot input (13, 173)
+cached pilot input (14, 159)
+cached pilot input (14, 258)
+cached pilot input (15, 17)
+cached pilot input (15, 70)
+cached pilot input (16, 60)
+cached pilot input (16, 335)
+Traceback (most recent call last):
+  File "tools/run_sam_person_pilot.py", line 244, in <module>
+    if __name__=='__main__':main()
+  File "tools/run_sam_person_pilot.py", line 186, in main
+    for k in before:torch.testing.assert_allclose(before[k],after[k],rtol=1e-5,atol=1e-6)
+  File "/share/apps/anaconda3/envs/torch171/lib/python3.8/site-packages/torch/testing/__init__.py", line 223, in assert_allclose
+    raise AssertionError(msg)
+AssertionError: With rtol=1e-05 and atol=1e-06, found 105 element(s) (out of 392) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 0.0004925727844238281 (-4.262431621551514 vs. -4.2629241943359375), which occurred at index (3, 3, 0).

@@ -1,0 +1,8 @@
+{
+  "changed_files": [
+    "tools/run_sam_person_pilot.py"
+  ],
+  "change": "one logging-only line clears last_mask_stats after B0 all-one diagnostic; model/criterion/evaluator/geometry unchanged",
+  "old_hash": "0a3fb1b2cc1d9a7db0cea0de38b1007d807a941c323664e026f17000d86fda11",
+  "new_hash": "e2aa8527641ae97b13215f89d95c5cc8076a32c7e9e552bed3f7dd0152d65f94"
+}

@@ -1,0 +1,114 @@
+[
+  {
+    "checks": {
+      "base_checkpoint_or_init_hash": true,
+      "base_checkpoint_sha256": true,
+      "checkpoint_selection_rule": true,
+      "code_hash": true,
+      "config_hash": true,
+      "effective_batch": true,
+      "evaluator_hash": true,
+      "export_clip_frame_boxes_actor_order": true,
+      "input_manifest_hash": true,
+      "lr_schedule": true,
+      "sampled_frame_hash": true,
+      "seed": true,
+      "split_hash": true,
+      "steps": true,
+      "train_clip_manifest_hash": true,
+      "val_clip_manifest_hash": true
+    },
+    "cohort": "paired_stable",
+    "stage": "reference"
+  },
+  {
+    "checks": {
+      "base_checkpoint_or_init_hash": true,
+      "base_checkpoint_sha256": true,
+      "checkpoint_selection_rule": true,
+      "code_hash": true,
+      "config_hash": true,
+      "effective_batch": true,
+      "evaluator_hash": true,
+      "input_manifest_hash": true,
+      "lr_schedule": true,
+      "sample_order_hash": true,
+      "sampled_frame_hash": true,
+      "seed": true,
+      "split_hash": true,
+      "steps": true,
+      "train_clip_manifest_hash": true,
+      "val_clip_manifest_hash": true
+    },
+    "cohort": "paired_stable",
+    "stage": "overfit"
+  },
+  {
+    "checks": {
+      "base_checkpoint_or_init_hash": true,
+      "base_checkpoint_sha256": true,
+      "checkpoint_selection_rule": true,
+      "code_hash": true,
+      "config_hash": true,
+      "effective_batch": true,
+      "evaluator_hash": true,
+      "export_clip_frame_boxes_actor_order": true,
+      "input_manifest_hash": true,
+      "lr_schedule": true,
+      "sample_order_hash": true,
+      "sampled_frame_hash": true,
+      "seed": true,
+      "split_hash": true,
+      "steps": true,
+      "train_clip_manifest_hash": true,
+      "val_clip_manifest_hash": true
+    },
+    "cohort": "paired_stable",
+    "stage": "pilot"
+  },
+  {
+    "checks": {
+      "base_checkpoint_or_init_hash": true,
+      "base_checkpoint_sha256": true,
+      "checkpoint_selection_rule": true,
+      "code_hash": true,
+      "config_hash": true,
+      "effective_batch": true,
+      "evaluator_hash": true,
+      "export_clip_frame_boxes_actor_order": true,
+      "input_manifest_hash": true,
+      "lr_schedule": true,
+      "sampled_frame_hash": true,
+      "seed": true,
+      "split_hash": true,
+      "steps": true,
+      "train_clip_manifest_hash": true,
+      "val_clip_manifest_hash": true
+    },
+    "cohort": "paired_extended",
+    "stage": "reference"
+  },
+  {
+    "checks": {
+      "base_checkpoint_or_init_hash": true,
+      "base_checkpoint_sha256": true,
+      "checkpoint_selection_rule": true,
+      "code_hash": true,
+      "config_hash": true,
+      "effective_batch": true,
+      "evaluator_hash": true,
+      "export_clip_frame_boxes_actor_order": true,
+      "input_manifest_hash": true,
+      "lr_schedule": true,
+      "sample_order_hash": true,
+      "sampled_frame_hash": true,
+      "seed": true,
+      "split_hash": true,
+      "steps": true,
+      "train_clip_manifest_hash": true,
+      "val_clip_manifest_hash": true
+    },
+    "cohort": "paired_extended",
+    "stage": "pilot"
+  }
+]

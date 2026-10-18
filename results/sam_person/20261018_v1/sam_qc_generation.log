@@ -1,0 +1,13 @@
+{"status": "validated", "frames": 200, "actors": 2054}
+Traceback (most recent call last):
+  File "/mzy/copyfrom_aixi_gadfortest/tools/sam_person_masks.py", line 489, in <module>
+    main()
+  File "/mzy/copyfrom_aixi_gadfortest/tools/sam_person_masks.py", line 483, in main
+    if cli.command=='generate': validate(c,rows);generate(c,rows,cli);return
+  File "/mzy/copyfrom_aixi_gadfortest/tools/sam_person_masks.py", line 291, in generate
+    device=torch.cuda.get_device_name(0),precision='fp32',
+  File "/share/apps/anaconda3/lib/python3.9/site-packages/torch/cuda/__init__.py", line 341, in get_device_name
+    return get_device_properties(device).name
+  File "/share/apps/anaconda3/lib/python3.9/site-packages/torch/cuda/__init__.py", line 374, in get_device_properties
+    raise AssertionError("Invalid device id")
+AssertionError: Invalid device id

@@ -1,0 +1,88 @@
+{
+  "B0": {
+    "scope": "16 VAL clips; unchanged evaluator parsing; overlap diagnostics, not replacement AP matching; no thresholds selected",
+    "gt_groups": 26,
+    "pred_groups": 19,
+    "split_overlap_events": 1,
+    "merge_overlap_events": 2,
+    "exact_compatible_gt_sets": 8,
+    "high_confidence_incompatible_predictions": [
+      {
+        "clip": "15,56",
+        "pred_group": 0,
+        "activity": 6,
+        "members": [
+          0,
+          8,
+          9,
+          10
+        ],
+        "confidence": 0.9943477511405945,
+        "best_same_activity_iou": 0.16666666666666666
+      },
+      {
+        "clip": "14,182",
+        "pred_group": 0,
+        "activity": 6,
+        "members": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "confidence": 0.9907007217407227,
+        "best_same_activity_iou": 0.0
+      }
+    ]
+  },
+  "S2F": {
+    "scope": "16 VAL clips; unchanged evaluator parsing; overlap diagnostics, not replacement AP matching; no thresholds selected",
+    "gt_groups": 26,
+    "pred_groups": 19,
+    "split_overlap_events": 0,
+    "merge_overlap_events": 1,
+    "exact_compatible_gt_sets": 7,
+    "high_confidence_incompatible_predictions": [
+      {
+        "clip": "15,56",
+        "pred_group": 0,
+        "activity": 6,
+        "members": [
+          6,
+          8,
+          9,
+          10
+        ],
+        "confidence": 0.9996706247329712,
+        "best_same_activity_iou": 0.0
+      },
+      {
+        "clip": "15,70",
+        "pred_group": 0,
+        "activity": 6,
+        "members": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "confidence": 0.9800627827644348,
+        "best_same_activity_iou": 0.0
+      },
+      {
+        "clip": "14,182",
+        "pred_group": 0,
+        "activity": 6,
+        "members": [
+          6,
+          7,
+          8,
+          9
+        ],
+        "confidence": 0.9886578917503357,
+        "best_same_activity_iou": 0.0
+      }
+    ]
+  }
+}

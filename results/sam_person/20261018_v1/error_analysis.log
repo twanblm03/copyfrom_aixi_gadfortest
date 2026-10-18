@@ -1,0 +1,35 @@
+{
+  "B0": {
+    "scope": "8 VAL clips; unchanged evaluator parsing; overlap diagnostics, not replacement AP matching; no thresholds selected",
+    "gt_groups": 13,
+    "pred_groups": 10,
+    "split_overlap_events": 0,
+    "merge_overlap_events": 1,
+    "exact_compatible_gt_sets": 4,
+    "high_confidence_incompatible_predictions": [
+      {
+        "clip": "15,70",
+        "pred_group": 0,
+        "activity": 6,
+        "members": [
+          0,
+          1,
+          3,
+          4,
+          5
+        ],
+        "confidence": 0.9219776391983032,
+        "best_same_activity_iou": 0.0
+      }
+    ]
+  },
+  "S2F": {
+    "scope": "8 VAL clips; unchanged evaluator parsing; overlap diagnostics, not replacement AP matching; no thresholds selected",
+    "gt_groups": 13,
+    "pred_groups": 11,
+    "split_overlap_events": 1,
+    "merge_overlap_events": 2,
+    "exact_compatible_gt_sets": 2,
+    "high_confidence_incompatible_predictions": []
+  }
+}

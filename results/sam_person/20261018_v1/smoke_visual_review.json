@@ -1,0 +1,38 @@
+{
+  "evidence": "assistant visual triage of all 83 smoke actor crops; no independent pixel GT",
+  "reviewed_actor_crops": 83,
+  "coordinate_axis_or_uid_systematic_error_observed": false,
+  "semantic_perfection_claimed": false,
+  "notes": [
+    {
+      "uid": "cafe/1/112/row_1",
+      "flag": "suspected neighbor/near-duplicate silhouette under heavy overlap"
+    },
+    {
+      "uid": "cafe/4/416/row_0",
+      "flag": "partial-body selection and unrelated foreground fragments"
+    },
+    {
+      "uid": "cafe/4/416/row_2",
+      "flag": "ambiguous overlapped seated actors; suspected neighbor selection"
+    },
+    {
+      "uid": "cafe/23/273/row_7",
+      "flag": "suspected front-neighbor selection instead of rear actor"
+    },
+    {
+      "uid": "cafe/13/82/row_6",
+      "flag": "severe partial/body miss with chair/background fragments"
+    },
+    {
+      "uid": "cafe/16/259/row_3",
+      "flag": "neighbor leakage or merged person silhouette despite predicted quality .956"
+    }
+  ],
+  "other_observations": [
+    "some masks include chair regions or omit visible limbs",
+    "small and occluded persons can remain structurally nonempty but have poor body support",
+    "predicted quality can exceed 1; it is neither calibrated probability nor measured IoU"
+  ],
+  "p1_engineering_gate": "passed for bounded P2 expansion; local semantic failures retained without filtering"
+}

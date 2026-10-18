@@ -1,0 +1,29 @@
+{
+  "reason": "B0 last_mask_stats retained all-one diagnostic values after mode was restored to disabled. This affected logging only; forward never reads last_mask_stats, all predictions/losses/weights are retained unchanged. Actual actor count reconstructed from exact sample order and frozen frame manifest.",
+  "corrections": [
+    {
+      "run_id": "/mzy/copyfrom_aixi_gadfortest/outputs/sam_person/20261018_v1/paired_stable/B0/overfit",
+      "actual_ordinary_roi_actor_frames": 8220,
+      "actual_sam_roi_actor_frames": 0,
+      "original_logged_mask_counts": {
+        "fallback": 0,
+        "feature_grid_empty": 0,
+        "raw_failed": 0,
+        "used": 8400,
+        "valid": 8400
+      }
+    },
+    {
+      "run_id": "/mzy/copyfrom_aixi_gadfortest/outputs/sam_person/20261018_v1/paired_stable/B0/pilot",
+      "actual_ordinary_roi_actor_frames": 16380,
+      "actual_sam_roi_actor_frames": 0,
+      "original_logged_mask_counts": {
+        "fallback": 0,
+        "feature_grid_empty": 0,
+        "raw_failed": 0,
+        "used": 16800,
+        "valid": 16800
+      }
+    }
+  ]
+}
