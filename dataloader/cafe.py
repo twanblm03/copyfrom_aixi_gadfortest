@@ -12,13 +12,16 @@ ACTIVITIES = ['Queueing', 'Ordering', 'Eating/Drinking', 'Working/Studying', 'Fi
 
 
 # read annotation files
-def cafe_read_annotations(path, videos, num_class):
+def cafe_read_annotations(path, videos, num_class, clip_ids=None):
     labels = {}
     group_to_id = {name: i for i, name in enumerate(ACTIVITIES)}
 
     for vid in videos:
         video_path = os.path.join(path, vid)
-        for cid in os.listdir(video_path):
+        # Bounded adapters may supply explicit clip IDs; default B0 is unchanged.
+        clip_names = os.listdir(video_path) if clip_ids is None else [
+            str(cid) for clip_vid, cid in clip_ids if int(clip_vid) == int(vid)]
+        for cid in clip_names:
             clip_path = os.path.join(video_path, cid)            
             label_path = clip_path + '/ann.json'
 

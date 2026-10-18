@@ -71,6 +71,13 @@ class GADTRB0Repro(nn.Module):
 
         self.heatmap_variant = getattr(args, 'heatmap_variant', 'off')
         self.attention_probe = getattr(args, 'attention_probe', False)
+        self.train_mask_mode = getattr(args, 'train_mask_mode', 'disabled')
+        self.mask_empty_eps = getattr(args, 'mask_empty_eps', 1e-6)
+        self.last_mask_stats = None
+        if self.train_mask_mode not in ('disabled', 'sam_roi'):
+            raise ValueError('unknown train_mask_mode')
+        if self.train_mask_mode != 'disabled' and self.heatmap_variant != 'off':
+            raise ValueError('first SAM branch requires unmodified B0')
         self.mask_head = None
         if self.heatmap_variant != 'off':
             # Construct after B0 initialization without advancing paired RNGs.
@@ -92,7 +99,8 @@ class GADTRB0Repro(nn.Module):
 
         return torch.sqrt(dist)
 
-    def forward(self, x, boxes, dummy_mask, mae_feats=None, actor_frame_valid=None):
+    def forward(self, x, boxes, dummy_mask, mae_feats=None, actor_frame_valid=None,
+                actor_masks=None, raw_mask_valid=None):
         """
         :param x: [B, T, 3, H, W]
         :param boxes: [B, T, N, 4]
@@ -163,6 +171,16 @@ class GADTRB0Repro(nn.Module):
         valid_y = (sample_y >= 0) & (sample_y <= oh - 1)
         valid_samples = valid_y[:, :, None] & valid_x[:, None, :]
         actor_features = actor_features * valid_samples[:, None].to(actor_features.dtype)
+
+        if self.train_mask_mode == 'sam_roi':
+            from .sam_roi import filter_actor_rois
+            if actor_masks is None or raw_mask_valid is None or actor_frame_valid is None:
+                raise ValueError('SAM RoI requires complete masks and validity')
+            if tuple(actor_masks.shape) != (bs, t, n, oh, ow):
+                raise ValueError('mask grid must match actual backbone height/width')
+            actor_features, self.last_mask_stats = filter_actor_rois(
+                actor_features, boxes_flat, actor_masks, actor_frame_valid,
+                raw_mask_valid, self.roi_align, self.mask_empty_eps, sample_valid=valid_samples)
 
         actor_features = torch.reshape(actor_features, (bs * t * n, -1))
         actor_features = self.fc_emb(actor_features)
