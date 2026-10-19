@@ -13,6 +13,7 @@ from torchvision.ops import roi_align
 
 
 VARIANTS = ('off', 'h1_sup', 'h1_match', 'h2_s')
+TARGET_MODES = ('box', 'nearest_center')
 
 
 def xyxy_grid(boxes, height, width):
@@ -32,10 +33,12 @@ def frame_validity(boxes, dummy_mask, supplied=None):
 
 
 def gaussian_targets(boxes, members, valid, height, width,
-                     sigma_ratio=.25, sigma_min=.5, sigma_max=4.):
+                     sigma_ratio=.25, sigma_min=.5, sigma_max=4., target_mode='box'):
     """[T,N,4], [G,N], [T,N] -> [G,T,H,W], explicit [G,T]."""
     if not (0 < sigma_ratio and 0 < sigma_min <= sigma_max):
         raise ValueError('invalid Gaussian sigma settings')
+    if target_mode not in TARGET_MODES:
+        raise ValueError('unknown heatmap target mode: '+str(target_mode))
     t, n, _ = boxes.shape
     g = members.shape[0]
     if not g:
@@ -44,6 +47,14 @@ def gaussian_targets(boxes, members, valid, height, width,
     scale = boxes.new_tensor([width, height])
     centers = clean[..., :2] * scale
     sigmas = (clean[..., 2:] * scale * sigma_ratio).clamp(sigma_min, sigma_max)
+    if target_mode == 'nearest_center':
+        # All valid actors, including individuals and same-group neighbors.
+        # Group labels are deliberately not used to choose the neighbor.
+        distances = (centers[:, :, None] - centers[:, None, :]).square().sum(-1).sqrt()
+        pairs = valid[:, :, None] & valid[:, None, :]
+        pairs = pairs & ~torch.eye(n, dtype=torch.bool, device=boxes.device)[None]
+        nearest = distances.masked_fill(~pairs, float('inf')).min(-1).values
+        sigmas = torch.minimum(sigmas, .35 * nearest[..., None]).clamp(min=sigma_min)
     xx = torch.arange(width, device=boxes.device, dtype=boxes.dtype) + .5
     yy = torch.arange(height, device=boxes.device, dtype=boxes.dtype) + .5
     dx = (xx[None, None, None, :] - centers[..., 0, None, None]) / sigmas[..., 0, None, None]
@@ -142,7 +153,8 @@ def prepare_targets(outputs, targets, args):
         item = dict(target)
         maps, frame_valid = gaussian_targets(target['boxes'], target['members'][0],
             outputs['actor_frame_valid'][i], h, w, args.heatmap_sigma_ratio,
-            args.heatmap_sigma_min, args.heatmap_sigma_max)
+            args.heatmap_sigma_min, args.heatmap_sigma_max,
+            target_mode=getattr(args, 'heatmap_target_mode', 'box'))
         item['group_heatmaps'], item['group_frame_valid'] = maps, frame_valid
         prepared.append(item)
     return prepared
@@ -181,6 +193,7 @@ def add_heatmap_arguments(parser):
     parser.add_argument('--heatmap_sigma_ratio', type=float, default=.25)
     parser.add_argument('--heatmap_sigma_min', type=float, default=.5)
     parser.add_argument('--heatmap_sigma_max', type=float, default=4.)
+    parser.add_argument('--heatmap_target_mode', choices=TARGET_MODES, default='box')
     parser.add_argument('--heatmap_roi_size', type=int, default=3)
     parser.add_argument('--heatmap_roi_sampling', type=int, default=2)
     parser.add_argument('--heatmap_focal_gamma', type=float, default=2.)
