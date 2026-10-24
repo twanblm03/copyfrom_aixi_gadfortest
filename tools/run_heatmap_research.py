@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader, Subset
 from dataloader.dataloader import read_dataset, TRAIN_CAFE_P, VAL_CAFE_P, TEST_CAFE_P
 from evaluation.cafe_eval import GAD_Evaluation, make_clip_key, make_image_key
 from models import build_model
-from models.heatmap import gaussian_targets, roi_responses, prepare_targets, TARGET_MODES
+from models.heatmap import gaussian_targets, roi_responses, prepare_targets
 from models.heatmap_criterion import HeatmapMatcher
 from util.group_export import make_txt
 
@@ -131,19 +131,6 @@ def tensor_hash(model, common=True):
     return hasher.hexdigest()
 
 
-def validate_development_protocol(args, cli):
-    if (not args.val_mode or args.split not in ('place', 'view') or args.use_mae
-            or not args.no_mae or not args.research_b0_repro):
-        raise ValueError('recorded runner requires place TRAIN->VAL, frozen ResNet B0, no VideoMAE')
-    target_mode = getattr(args, 'heatmap_target_mode', 'box')
-    if target_mode not in TARGET_MODES:
-        raise ValueError('unknown heatmap target mode: '+str(target_mode))
-    if target_mode != 'box' and (args.split != 'place' or args.heatmap_variant != 'h1_sup'):
-        raise ValueError('crowding target is limited to place H1-Sup TRAIN->VAL')
-    if args.split != 'place':
-        raise ValueError('recorded runner requires place TRAIN->VAL')
-
-
 def record_context(out, args, cli):
     revision = git('rev-parse', 'HEAD').strip()
     diff = git('diff', '--binary')
@@ -152,7 +139,7 @@ def record_context(out, args, cli):
     snapshot=out/'source_snapshot'
     for folder in ('models', 'dataloader', 'evaluation', 'util', 'tools', 'configs/heatmap', 'tests/heatmap'):
         for path in sorted((ROOT/folder).rglob('*')):
-            if path.is_file() and path.suffix in ('.py', '.json', '.cpp'):
+            if path.is_file() and path.suffix in ('.py', '.json'):
                 sources[str(path.relative_to(ROOT))] = file_hash(path)
                 destination=snapshot/path.relative_to(ROOT)
                 destination.parent.mkdir(parents=True,exist_ok=True)
@@ -171,11 +158,7 @@ def record_context(out, args, cli):
     json_write(out/'environment.json', environment)
     json_write(out/'existing_results.json', sorted(str(p.relative_to(ROOT)) for p in (ROOT/'outputs').rglob('args.json')
                                                    if 'heatmap' not in str(p)))
-    target_mode = getattr(args, 'heatmap_target_mode', 'box')
-    variant = 'h1_sup_crowding' if target_mode == 'nearest_center' else args.heatmap_variant
-    return dict(run_id=out.as_posix(), variant=variant, base_variant=args.heatmap_variant,
-        heatmap_target_mode=target_mode, crowding_distance_ratio=.35 if target_mode=='nearest_center' else None,
-        protocol='place_train_val_b0_repro',
+    return dict(run_id=out.as_posix(), variant=args.heatmap_variant, protocol='place_train_val_b0_repro',
         code_revision=revision, dirty_diff_hash=digest(diff.encode()),
         baseline_revision=git('rev-parse','exp/b0-repro').strip(),
         source_manifest_hash=file_hash(out/'source_manifest.json'), config_hash=file_hash(out/'resolved_config.json'),
@@ -538,7 +521,8 @@ def main():
     args=argparse.Namespace(**json.loads(Path(cli.config).read_text()))
     for attr,value in (('batch',cli.batch),('micro_batch',cli.micro_batch),('random_seed',cli.seed)):
         if value is not None: setattr(args,attr,value)
-    validate_development_protocol(args, cli)
+    if not args.val_mode or args.split!='place' or args.use_mae or not args.no_mae or not args.research_b0_repro:
+        raise ValueError('first-round runner is frozen to place TRAIN->VAL, no VideoMAE')
     frozen = dict(backbone='resnet18',num_frame=5,num_group_tokens=12,hidden_dim=256,
         image_width=1280,image_height=720,optimizer='adam',lr_schedule='linear',
         lr=1e-5,max_lr=1e-4,warmup_epochs=5,epochs=30,weight_decay=0,
@@ -609,7 +593,6 @@ def main():
             if torch.cuda.is_available():
                 rng+=b''.join(state.cpu().numpy().tobytes() for state in torch.cuda.get_rng_state_all())
             record['initial_rng_hash']=digest(rng)
-            record['initial_full_state_hash']=tensor_hash(model,common=False)
             record['mask_head_parameters']=sum(p.numel() for p in model.mask_head.parameters()) if model.mask_head else 0
             record['total_parameters']=sum(p.numel() for p in model.parameters())
             model.to(device); criterion.to(device)

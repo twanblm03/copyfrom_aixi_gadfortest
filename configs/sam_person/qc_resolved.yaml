@@ -1,0 +1,66 @@
+{
+  "schema_version": "sam-person-raw-v1",
+  "project_root": "/mzy/copyfrom_aixi_gadfortest",
+  "dataset_adapter": "real dataloader.dataloader.read_dataset + CafeDataset.load_samples/select_frames",
+  "protocol": "place_train_val_b0_repro",
+  "data_root": "/share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset/cafe",
+  "tracks_path": "/share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset/cafe/gt_tracks.pkl",
+  "source_frame_mapping": "clip-relative floor(segment centers)*framesEach; absolute video frame mapping unavailable",
+  "actor_box_source": "given GT actor tracklets gt_tracks.pkl, matching B0; visible vs amodal semantics not independently documented",
+  "box_coordinate_convention": "normalized_cxcywh_to_original_pixel_xyxy",
+  "sam_python": "/share/apps/anaconda3/bin/python",
+  "gad_python": "/share/apps/anaconda3/envs/torch171/bin/python",
+  "sam_repo": "/mzy/cafe_runs/sam-probe/python_packages",
+  "sam_family": "sam_v1_vit_b",
+  "sam_commit": "dca509fe793f601edb92606367a655c15ac00fdf",
+  "sam_commit_evidence": "installed direct_url.json archive path; source content hash locked",
+  "sam_source_hash": "79c08dc4649b51b257382e0fb7647fe9ab99b046bc84623ffd445ff383598a68",
+  "checkpoint": "/mzy/cafe_runs/sam-probe/checkpoints/sam_vit_b_01ec64.pth",
+  "checkpoint_sha256": "ec2df62732614e57411cdcf32a23ffdf28910380d03139ee0f4fcbe91eb8c912",
+  "model_config": "original SAM build_sam_vit_b",
+  "sam_config_hash": "77bc4faf728118625ddd184dc4e6375bd1b5c636fc66fb429f9fc5276f331cc5",
+  "device": "cuda:0",
+  "physical_gpu_ids": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "generation_gpu_uuid": "GPU-d2b35225-e4f2-e4d6-e4e1-d289490a03ab",
+  "precision": "fp32",
+  "prompt_policy": "box_only",
+  "multimask_output": false,
+  "mask_threshold": 0.0,
+  "postprocess_options": {
+    "raw_binary": true,
+    "clip_to_box": false,
+    "largest_component": false,
+    "nms": false,
+    "custom_cuda_extension": "not required by original SAM"
+  },
+  "cache_root": "/mzy/copyfrom_aixi_gadfortest/outputs/sam_person/20261018_v1/cache",
+  "cache_version": "raw_bc294f454bfdfad21798",
+  "sample_seed": 20261018,
+  "per_split_limits": {
+    "train": 120,
+    "val": 80
+  },
+  "max_frames": 200,
+  "max_actor_prompts": 3000,
+  "max_gpu_minutes": 60,
+  "generation_ledger": "/mzy/copyfrom_aixi_gadfortest/outputs/sam_person/20261018_v1/generation_budget.json",
+  "train_mask_mode": "sam_roi",
+  "empty_eps": 1e-06,
+  "fallback_policy": "ordinary ROI only for explicit raw failure/empty or feature ROI mean<=eps; invalid actors unchanged",
+  "image_hw": [
+    720,
+    1280
+  ],
+  "feature_hw": [
+    23,
+    40
+  ],
+  "independent_pixel_gt": null,
+  "sampling_split_manifest": "/mzy/cafe_runs/heatmap/h1_match_full_seed1_resume_epoch7_20261013_193136/run/data_manifest.json",
+  "sampling_split_manifest_sha256": "f428e7a08b774fd6f0c9e3ce7402fb6b01846f81902dbabb0166df95c9c0a212"
+}

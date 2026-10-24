@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "protocol": "new_dp4_corrected_evaluator",
+  "training_protocol": "best_on_test",
+  "split": "view",
+  "method_order": [
+    "b0",
+    "h1_sup",
+    "sam"
+  ],
+  "evaluator_sha256": "f1cd5f05b63ec769c149ad1b8926922eb03bb70ab3665fb7e6bf75cec28b40a0",
+  "derived_args": [
+    "protocol",
+    "eval_split",
+    "use_mae",
+    "mae_dim"
+  ],
+  "evaluation_policy": {
+    "split": "test",
+    "epochs": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ],
+    "selection_metric": "group_mAP_1.0",
+    "selection_label": "best-on-TEST",
+    "checkpoint": "best_test.pth",
+    "keep_epoch30": true,
+    "keep_all_epochs": true
+  },
+  "runs": {
+    "b0": {
+      "reference_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_dp4/b0.args.json",
+      "resolved_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/b0.args.json",
+      "argv": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/b0.argv.json",
+      "args_fields": 117,
+      "roundtrip": "passed",
+      "reference_args_sha256": "22b02fd6abd8c65f8ecdcd8cb27ac29bce2554fe4aac7613c61090ef813997d9"
+    },
+    "h1_sup": {
+      "reference_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_dp4/h1_sup.args.json",
+      "resolved_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/h1_sup.args.json",
+      "argv": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/h1_sup.argv.json",
+      "args_fields": 117,
+      "roundtrip": "passed",
+      "reference_args_sha256": "0571464c3609e5bd4b960f780a8c46706ea83d9a67ce237e1ce5bf180307fae5"
+    },
+    "sam": {
+      "reference_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_dp4/sam.args.json",
+      "resolved_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/sam.args.json",
+      "argv": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/sam.argv.json",
+      "args_fields": 117,
+      "roundtrip": "passed",
+      "reference_args_sha256": "707660ab3a333f0241fc397a36aa2fbff9ce6c537f0645dea9667966c142e85f"
+    }
+  }
+}

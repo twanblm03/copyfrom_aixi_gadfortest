@@ -218,7 +218,9 @@ class Joiner(nn.Sequential):
         features = self[0](x)
         _, c, oh, ow = features.shape
 
-        pos = self[1](features).to(x.dtype)
+        # SAM inputs are uint8 RGB; positional features must stay floating point.
+        pos_dtype = features.dtype if x.dtype == torch.uint8 else x.dtype
+        pos = self[1](features).to(pos_dtype)
 
         return features, pos
 
@@ -227,7 +229,12 @@ def  build_backbone(args):
     pos_embed = build_position_encoding(args)
     
     # 根据 backbone 名称选择不同的 Backbone
-    if 'dinov2' in args.backbone:
+    if args.backbone == 'sam_vit_b':
+        from util.sam_encoder import validate_sam_encoder_args
+        from .sam_backbone import SAMImageBackbone
+        validate_sam_encoder_args(args)
+        backbone = SAMImageBackbone(args)
+    elif 'dinov2' in args.backbone:
         backbone = DinoV2Backbone(args)
     else:
         backbone = Backbone(args)

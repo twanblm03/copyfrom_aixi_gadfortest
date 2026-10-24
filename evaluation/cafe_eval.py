@@ -266,11 +266,11 @@ def outlier_metric(gt_groups_ids, gt_groups_activity, pred_groups_ids, pred_grou
     """
     clip_IoU = defaultdict(list)
     TP = defaultdict(list)
-    clip_keys = pred_groups_ids.keys()
+    clip_keys = gt_groups_ids.keys()
     c_pred_groups_activity = copy.deepcopy(pred_groups_activity)
     c_gt_groups_activity = copy.deepcopy(gt_groups_activity)
     # prediction groups on each class. defines group has members equals or more than two.
-    pred_groups = [[clip_key, group_id, pred_groups_ids[clip_key][0][group_id]] for clip_key in clip_keys if
+    pred_groups = [[clip_key, group_id, pred_groups_ids[clip_key][0][group_id]] for clip_key in pred_groups_ids if
                   clip_key in gt_groups_ids.keys() for group_id in pred_groups_ids[clip_key][0].keys() if
                   c_pred_groups_activity[clip_key][0][group_id].pop() == (num_class + 1)]
     # ground truth groups on each class.
@@ -312,7 +312,8 @@ def group_mAP_eval(gt_groups_ids, gt_groups_activity, pred_groups_ids, pred_grou
       group_mAP: Mean of group APs on each activity class.
       group_APs; A list of each group AP on each activity class.
     """
-    clip_keys = pred_groups_ids.keys()
+    pred_clip_keys = pred_groups_ids.keys()
+    gt_clip_keys = gt_groups_ids.keys()
     # acc on each class.
     group_APs = np.zeros(len(categories))
     for c, clas in enumerate(categories):
@@ -322,21 +323,33 @@ def group_mAP_eval(gt_groups_ids, gt_groups_activity, pred_groups_ids, pred_grou
         # prediction groups on each class.
         pred_groups = [
             [clip_key, group_id, pred_groups_ids[clip_key][0][group_id], pred_groups_scores[clip_key][0][group_id]] for
-            clip_key in clip_keys if clip_key in gt_groups_ids.keys() for group_id in
+            clip_key in pred_clip_keys if clip_key in gt_groups_ids.keys() for group_id in
             pred_groups_ids[clip_key][0].keys() if
             c_pred_groups_activity[clip_key][0][group_id].pop() == clas['id'] and len(
                 pred_groups_ids[clip_key][0][group_id]) >= 2]
         # ground truth groups on each class.
-        gt_groups = [[clip_key, group_id, gt_groups_ids[clip_key][0][group_id]] for clip_key in clip_keys if
-                     clip_key in gt_groups_ids.keys() for group_id in gt_groups_ids[clip_key][0].keys() if
+        gt_groups = [[clip_key, group_id, gt_groups_ids[clip_key][0][group_id]] for clip_key in gt_clip_keys for group_id in gt_groups_ids[clip_key][0].keys() if
                      c_gt_groups_activity[clip_key][0][group_id].pop() == clas['id'] and len(
                          gt_groups_ids[clip_key][0][group_id]) >= 2]
 
         # denominator of Recall.
         npos = len(gt_groups)
+        if npos == 0:
+            # Keep the fixed class list in a bounded validation subset. An
+            # absent class contributes zero instead of a non-finite AP.
+            group_APs[c] = 0.0
+            continue
 
-        # sorts det_groups in descending order for g_score.
-        pred_groups = sorted(pred_groups, key=lambda conf: conf[3], reverse=True)
+        # make_groups stores each group confidence in a one-element set. Set
+        # comparison is not numeric ordering, so sorting sets made AP depend
+        # on the input clip order. Unwrap the scalar before ranking detections.
+        def confidence(group):
+            scores = group[3]
+            if len(scores) != 1:
+                raise ValueError('a predicted group must have one confidence score')
+            return float(next(iter(scores)))
+        pred_groups = sorted(pred_groups, key=lambda group: (
+            -confidence(group), group[0], group[1]))
 
         TP = np.zeros(len(pred_groups))
         FP = np.zeros(len(pred_groups))
@@ -380,11 +393,21 @@ def group_mAP_eval(gt_groups_ids, gt_groups_activity, pred_groups_ids, pred_grou
     return group_mAP, group_APs
 
 class GAD_Evaluation():
-    def __init__(self, args):
+    def __init__(self, args, clip_ids=None):
         super(GAD_Evaluation, self).__init__()
         self.eval_type = args.eval_type
         self.categories, self.class_whitelist = read_labelmap(args.labelmap)
         self.gt_boxes, self.gt_g_labels, self.gt_act_labels, _, self.gt_g_scores = read_text_file(args.groundtruth, self.eval_type, mode='gt')
+        if clip_ids is not None:
+            expected = {'%d,%d' % (int(video), int(clip)) for video, clip in clip_ids}
+            present = {make_clip_key(image_key) for image_key in self.gt_boxes}
+            if not expected <= present:
+                raise ValueError('evaluation GT missing %d expected clips' % len(expected - present))
+            for records in (self.gt_boxes, self.gt_g_labels,
+                            self.gt_act_labels, self.gt_g_scores):
+                for image_key in list(records):
+                    if make_clip_key(image_key) not in expected:
+                        del records[image_key]
         self.gt_groups_ids, self.gt_groups_activity, _ = make_groups(
             self.gt_boxes, self.gt_g_labels, self.gt_act_labels, self.gt_g_scores)
         

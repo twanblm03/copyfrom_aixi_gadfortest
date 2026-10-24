@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "protocol": "new_dp4_corrected_evaluator",
+  "split": "view",
+  "method_order": [
+    "b0",
+    "h1_sup",
+    "sam"
+  ],
+  "evaluator_sha256": "f1cd5f05b63ec769c149ad1b8926922eb03bb70ab3665fb7e6bf75cec28b40a0",
+  "derived_args": [
+    "protocol",
+    "eval_split",
+    "use_mae",
+    "mae_dim"
+  ],
+  "runs": {
+    "b0": {
+      "reference_args": "result/[cafe]_GAD_[b0_randomseg_dp4_lr1_noclip_seed1]_[2026-10-20_21-51-49]/args.json",
+      "resolved_args": "configs/view_dp4/b0.args.json",
+      "argv": "configs/view_dp4/b0.argv.json",
+      "args_fields": 115,
+      "roundtrip": "passed",
+      "reference_args_sha256": "2a1ff13cc9f553d5639c27ac91e8eefaf4ee9466fccd986ea24413e8e3426bfe"
+    },
+    "h1_sup": {
+      "reference_args": "result/[cafe]_GAD_[h1_sup_randomseg_dp4_lr1_noclip_seed1]_[2026-10-20_21-52-07]/args.json",
+      "resolved_args": "configs/view_dp4/h1_sup.args.json",
+      "argv": "configs/view_dp4/h1_sup.argv.json",
+      "args_fields": 115,
+      "roundtrip": "passed",
+      "reference_args_sha256": "5e72806c7e2bf8ebc7c8ef81fee3a8eb67a3343dd20190bdf80b8d8263adf382"
+    },
+    "sam": {
+      "reference_args": "result/[cafe]_GAD_[sam_randomsegments_dp4_lr1_noclip_seed1]_[2026-10-21_19-57-40]/args.json",
+      "resolved_args": "configs/view_dp4/sam.args.json",
+      "argv": "configs/view_dp4/sam.argv.json",
+      "args_fields": 115,
+      "roundtrip": "passed",
+      "reference_args_sha256": "90c033d4e581abf5ce7a2ab5e9fe777fcfb92aa505b2b7ab923dda63ef391b7f"
+    }
+  }
+}

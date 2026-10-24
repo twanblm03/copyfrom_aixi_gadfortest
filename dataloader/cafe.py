@@ -7,18 +7,22 @@ import json
 import numpy as np
 import random
 from PIL import Image
+from util.image_io_retry import load_image_with_retry
 
 ACTIVITIES = ['Queueing', 'Ordering', 'Eating/Drinking', 'Working/Studying', 'Fighting', 'TakingSelfie']
 
 
 # read annotation files
-def cafe_read_annotations(path, videos, num_class):
+def cafe_read_annotations(path, videos, num_class, clip_ids=None):
     labels = {}
     group_to_id = {name: i for i, name in enumerate(ACTIVITIES)}
 
     for vid in videos:
         video_path = os.path.join(path, vid)
-        for cid in os.listdir(video_path):
+        # Bounded adapters may supply explicit clip IDs; default B0 is unchanged.
+        clip_names = os.listdir(video_path) if clip_ids is None else [
+            str(cid) for clip_vid, cid in clip_ids if int(clip_vid) == int(vid)]
+        for cid in clip_names:
             clip_path = os.path.join(video_path, cid)            
             label_path = clip_path + '/ann.json'
 
@@ -159,12 +163,66 @@ class CafeDataset(data.Dataset):
         self.videomae_feats_path = getattr(args, 'videomae_feats_path', None)
         self.use_mae = getattr(args, 'use_mae', False)
         self.research_validity = getattr(args, 'research_b0_repro', False)
+        self.sam_reader = None
+        self.sam_available_indices = None
+        manifest_path = getattr(args, 'sam_mask_manifest', '')
+        if manifest_path:
+            from util.sam_person import MaskReader, cache_paths, projected_paths
+            selected_clips = set(frames)
+            with open(manifest_path) as stream:
+                rows = (row for line in stream if line.strip()
+                        for row in (json.loads(line),)
+                        if (row['video_id'], row['clip_id']) in selected_clips)
+                self.sam_reader = MaskReader(dict(
+                    cache_root=args.sam_cache_root, cache_version=args.sam_cache_version,
+                    projected=getattr(args, 'sam_projected_cache', False),
+                    allow_cache_fallback=is_training), rows)
+            self.sam_feature_hw = (args.sam_feature_height, args.sam_feature_width)
+            if is_training and not getattr(args, 'fixed_center_train', False):
+                self.sam_available_indices = {}
+                for clip in self.frames:
+                    annotation = self.anns[clip]
+                    available = set()
+                    for frame_index in range(int(annotation['num_frames'])):
+                        fid = frame_index * int(annotation['interval'])
+                        row = self.sam_reader.rows.get((clip[0], clip[1], fid))
+                        if row is None:
+                            raise ValueError(
+                                'SAM manifest does not cover random TRAIN frame '
+                                f'{clip[0]}/{clip[1]}/frames_{fid}.jpg')
+                        raw_array, raw_marker = cache_paths(
+                            args.sam_cache_root, args.sam_cache_version, row)
+                        if getattr(args, 'sam_projected_cache', False):
+                            projected_array, projected_marker = projected_paths(
+                                args.sam_cache_root, args.sam_cache_version, row,
+                                (self.image_size[1], self.image_size[0]), self.sam_feature_hw)
+                            present = (raw_array.is_file() and raw_marker.is_file()
+                                       and projected_array.is_file() and projected_marker.is_file())
+                        else:
+                            present = raw_array.is_file() and raw_marker.is_file()
+                        if present:
+                            available.add(frame_index)
+                    self.sam_available_indices[clip] = available
+                    edges = np.linspace(0, int(annotation['num_frames']), self.num_frame + 1)
+                    for start, end in zip(edges[:-1], edges[1:]):
+                        first, stop = int(np.floor(start)), int(np.floor(end))
+                        candidates = range(first, stop) if stop > first else [
+                            min(int(np.floor((start + end) / 2)),
+                                int(annotation['num_frames']) - 1)]
+                        if not any(index in available for index in candidates):
+                            raise ValueError(
+                                'SAM cache has no usable TRAIN frame in a temporal '
+                                f'segment of clip {clip}; complete cache generation first')
         self.mae_dim = getattr(args, 'mae_dim', 768)
-        self.transform = transforms.Compose([
-            transforms.Resize((args.image_height, args.image_width)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        from util.sam_encoder import SAMRGBTransform, is_sam_backbone
+        if is_sam_backbone(args):
+            self.transform = SAMRGBTransform((args.image_height, args.image_width))
+        else:
+            self.transform = transforms.Compose([
+                transforms.Resize((args.image_height, args.image_width)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
 
     def __getitem__(self, idx):
         if self.num_frame == 1:
@@ -174,6 +232,13 @@ class CafeDataset(data.Dataset):
 
         samples = self.load_samples(frames)
 
+        if self.sam_reader is not None:
+            images, target, info = samples
+            masks, raw_valid = self.sam_reader.clip(
+                info, target['boxes'], target['actor_frame_valid'],
+                (self.image_size[1], self.image_size[0]), self.sam_feature_hw)
+            target['sam_masks'] = masks
+            target['raw_mask_valid'] = raw_valid
         return samples
 
     def __len__(self):
@@ -193,17 +258,20 @@ class CafeDataset(data.Dataset):
             raise ValueError(f'Clip {frame} must contain at least one frame, got {total_frames}')
 
         if self.is_training:
+            available = (self.sam_available_indices[frame]
+                         if self.sam_available_indices is not None else None)
             if self.random_sampling:
                 # Keep global random sampling without replacement when possible.
                 # Short clips use replacement so the temporal tensor keeps the
                 # configured length.
-                if total_frames >= self.num_frame:
-                    sample_frames = random.sample(range(total_frames), self.num_frame)
+                candidates = range(total_frames) if available is None else sorted(available)
+                if len(candidates) >= self.num_frame:
+                    sample_frames = random.sample(candidates, self.num_frame)
                 else:
-                    sample_frames = random.choices(range(total_frames), k=self.num_frame)
+                    sample_frames = random.choices(candidates, k=self.num_frame)
                 sample_frames.sort()
             else:
-                sample_frames = self._sample_random_segment_frames(total_frames)
+                sample_frames = self._sample_random_segment_frames(total_frames, available)
         else:
             # Evaluation must not depend on Python/NumPy RNG state. Select the
             # temporal midpoint of each evenly sized segment instead. Repeated
@@ -212,7 +280,7 @@ class CafeDataset(data.Dataset):
 
         return [(frame, int(fid * annotation['interval'])) for fid in sample_frames]
 
-    def _sample_random_segment_frames(self, total_frames):
+    def _sample_random_segment_frames(self, total_frames, available=None):
         """Randomly sample one index from each temporal segment."""
         segment_edges = np.linspace(0, total_frames, self.num_frame + 1)
         sample_frames = []
@@ -222,11 +290,20 @@ class CafeDataset(data.Dataset):
             stop = int(np.floor(end))
 
             if stop > first:
-                fid = np.random.randint(first, stop)
+                if available is None:
+                    fid = np.random.randint(first, stop)
+                else:
+                    candidates = [i for i in range(first, stop) if i in available]
+                    if not candidates:
+                        raise ValueError('no usable SAM cache frame in temporal segment')
+                    fid = candidates[np.random.randint(len(candidates))]
             else:
                 # A sub-frame segment occurs when num_frame > total_frames.
                 # Map it to the nearest valid frame while preserving ordering.
                 fid = int(np.floor((start + end) / 2))
+
+            if available is not None and fid not in available:
+                raise ValueError('no usable SAM cache frame in temporal segment')
 
             sample_frames.append(min(fid, total_frames - 1))
 
@@ -248,7 +325,7 @@ class CafeDataset(data.Dataset):
         for i, (frame, fid) in enumerate(frames):
             vid, cid = frame
             fids.append(fid)
-            img = Image.open(self.image_path + '/%s/%s/images/frames_%d.jpg' % (vid, cid, fid))
+            img = load_image_with_retry(self.image_path + '/%s/%s/images/frames_%d.jpg' % (vid, cid, fid))
             image_w, image_h = img.width, img.height
             img = self.transform(img)
             images.append(img)

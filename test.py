@@ -11,6 +11,7 @@ import time
 import random
 import numpy as np
 import argparse
+import json
 
 from models import build_model
 from util.utils import *
@@ -18,10 +19,14 @@ import util.misc as utils
 import util.logger as loggers
 from dataloader.dataloader import read_dataset
 import evaluation.cafe_eval as evaluation
+from util.sam_encoder import (add_sam_encoder_arguments, is_sam_backbone,
+                              validate_sam_encoder_args, validate_sam_resume)
 
 parser = argparse.ArgumentParser(description='Group Activity Detection test code')
 from models.heatmap import add_heatmap_arguments
 add_heatmap_arguments(parser)
+add_sam_encoder_arguments(parser)
+parser.add_argument('--train_mask_mode', choices=['disabled', 'sam_roi', 'sam_roi_blend'], default='disabled')
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
@@ -42,7 +47,7 @@ parser.add_argument('--videomae_feats_path', default='./videomae_features_giant'
                     help='path to videomae features')
 
 # Backbone parameters
-parser.add_argument('--backbone', default='resnet18', type=str, help='feature extraction backbone (resnet18, resnet50, dinov2_vits14, dinov2_vitb14, dinov2_vitl14, dinov2_vitg14)')
+parser.add_argument('--backbone', default='resnet18', type=str, help='feature extraction backbone (resnet18, resnet50, sam_vit_b, dinov2_vits14, dinov2_vitb14, dinov2_vitl14, dinov2_vitg14)')
 parser.add_argument('--dilation', action='store_true', help='use dilation or not')
 parser.add_argument('--frozen_batch_norm', action='store_true', help='use frozen batch normalization')
 parser.add_argument('--freeze_backbone', action='store_true', help='freeze ALL backbone parameters (for DINOv2)')
@@ -124,7 +129,7 @@ SEQS_CAFE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 
 ACTIVITIES = ['Queueing', 'Ordering', 'Drinking', 'Working', 'Fighting', 'Selfie', 'Individual', 'No']
 
 
-def load_model_checkpoint(model, model_path):
+def load_model_checkpoint(model, model_path, checkpoint=None):
     """Load checkpoints saved by either a single GPU or DataParallel/DDP."""
     if not model_path:
         raise ValueError('--model_path is required for evaluation')
@@ -133,7 +138,12 @@ def load_model_checkpoint(model, model_path):
     load_options = {'map_location': 'cpu'}
     if 'weights_only' in inspect.signature(torch.load).parameters:
         load_options['weights_only'] = False
-    checkpoint = torch.load(model_path, **load_options)
+    if checkpoint is None:
+        checkpoint = torch.load(model_path, **load_options)
+    resume_validation = validate_sam_resume(args, checkpoint)
+    if is_sam_backbone(args):
+        args.sam_resume_validation = resume_validation
+        print('SAM resume verification: ' + json.dumps(resume_validation, sort_keys=True))
     state_dict = checkpoint.get('state_dict', checkpoint)
     if not hasattr(state_dict, 'items'):
         raise TypeError(f'Checkpoint {model_path} does not contain a valid state dict')
@@ -156,6 +166,18 @@ def load_model_checkpoint(model, model_path):
 
 def main():
     global args, path
+
+    validate_sam_encoder_args(args)
+    sam_resume_checkpoint = None
+    if is_sam_backbone(args):
+        if not args.model_path:
+            raise ValueError('--model_path is required for evaluation')
+        import inspect
+        load_options = {'map_location': 'cpu'}
+        if 'weights_only' in inspect.signature(torch.load).parameters:
+            load_options['weights_only'] = False
+        sam_resume_checkpoint = torch.load(args.model_path, **load_options)
+        validate_sam_resume(args, sam_resume_checkpoint)
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
@@ -202,6 +224,11 @@ def main():
 
     print("[4/6] Building model...")
     model, criterion = build_model(args)
+    if is_sam_backbone(args):
+        args.sam_encoder_metadata = copy.deepcopy(model.backbone[0].metadata)
+        print('SAM encoder metadata: ' + json.dumps(args.sam_encoder_metadata, sort_keys=True))
+        with open(os.path.join(path, 'sam_encoder_metadata.json'), 'w') as stream:
+            json.dump(args.sam_encoder_metadata, stream, indent=2, sort_keys=True)
     model = model.cuda()
     device_ids = [device_id.strip() for device_id in args.device.split(',') if device_id.strip()]
     if len(device_ids) > 1:
@@ -212,11 +239,12 @@ def main():
     print("    Model built and moved to GPU")
 
     print("[5/6] Loading model weights...")
-    load_model_checkpoint(model, args.model_path)
+    load_model_checkpoint(model, args.model_path, checkpoint=sam_resume_checkpoint)
+    sam_resume_checkpoint = None
     print(f"    Model weights loaded from {args.model_path}")
 
     print("[6/6] Initializing evaluation metrics...")
-    metrics = evaluation.GAD_Evaluation(args)
+    metrics = evaluation.GAD_Evaluation(args, clip_ids=test_set.frames)
     print("    Metrics initialized")
 
     print("\n" + "=" * 60)

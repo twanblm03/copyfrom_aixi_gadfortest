@@ -1,0 +1,58 @@
+{
+  "description": "CPU synthetic dependency check; untrained ResNet18; 96x160 input; eval mode; no optimizer step. Not an accuracy experiment.",
+  "torch_version": "1.7.1",
+  "seed": 17,
+  "mask_head_parameters": 98689,
+  "heatmap_only_backward": {
+    "backbone": {
+      "parameters_with_grad": 60,
+      "gradient_l2": 0.8910601735115051
+    },
+    "input_proj": {
+      "parameters_with_grad": 2,
+      "gradient_l2": 0.3394252061843872
+    },
+    "fc_emb": {
+      "parameters_with_grad": 2,
+      "gradient_l2": 0.043174345046281815
+    },
+    "box_pos_emb": {
+      "parameters_with_grad": 6,
+      "gradient_l2": 0.0033541806042194366
+    },
+    "group_transformer": {
+      "parameters_with_grad": 170,
+      "gradient_l2": 1012.8211669921875
+    },
+    "group_query_emb": {
+      "parameters_with_grad": 1,
+      "gradient_l2": 0.00017526889860164374
+    },
+    "mask_head": {
+      "parameters_with_grad": 7,
+      "gradient_l2": 0.2739889323711395
+    },
+    "actor_match_emb": {
+      "parameters_with_grad": 0,
+      "gradient_l2": null
+    },
+    "group_match_emb": {
+      "parameters_with_grad": 0,
+      "gradient_l2": null
+    },
+    "group_emb": {
+      "parameters_with_grad": 0,
+      "gradient_l2": null
+    },
+    "class_emb": {
+      "parameters_with_grad": 0,
+      "gradient_l2": null
+    }
+  },
+  "max_absolute_difference_after_removing_mask_head": {
+    "membership": 0.0,
+    "pred_activities": 0.0,
+    "pred_actions": 0.0,
+    "actor_embeddings": 0.0
+  }
+}

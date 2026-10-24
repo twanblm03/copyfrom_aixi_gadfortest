@@ -13,7 +13,7 @@ from torchvision.ops import roi_align
 
 
 VARIANTS = ('off', 'h1_sup', 'h1_match', 'h2_s')
-TARGET_MODES = ('box', 'nearest_center')
+TARGET_MODES = ('box', 'crowd')
 
 
 def xyxy_grid(boxes, height, width):
@@ -33,12 +33,20 @@ def frame_validity(boxes, dummy_mask, supplied=None):
 
 
 def gaussian_targets(boxes, members, valid, height, width,
-                     sigma_ratio=.25, sigma_min=.5, sigma_max=4., target_mode='box'):
-    """[T,N,4], [G,N], [T,N] -> [G,T,H,W], explicit [G,T]."""
+                     sigma_ratio=.25, sigma_min=.5, sigma_max=4.,
+                     target_mode='box', crowd_cap_ratio=.35):
+    """[T,N,4], [G,N], [T,N] -> [G,T,H,W], explicit [G,T].
+
+    Crowd targets cap both Gaussian axes by the nearest other valid actor's
+    center distance in grid units, regardless of that actor's group membership.
+    The box mode preserves the original target arithmetic.
+    """
     if not (0 < sigma_ratio and 0 < sigma_min <= sigma_max):
         raise ValueError('invalid Gaussian sigma settings')
     if target_mode not in TARGET_MODES:
-        raise ValueError('unknown heatmap target mode: '+str(target_mode))
+        raise ValueError('invalid heatmap target mode')
+    if target_mode == 'crowd' and not (0 < crowd_cap_ratio and math.isfinite(crowd_cap_ratio)):
+        raise ValueError('crowd cap ratio must be finite and positive')
     t, n, _ = boxes.shape
     g = members.shape[0]
     if not g:
@@ -47,14 +55,14 @@ def gaussian_targets(boxes, members, valid, height, width,
     scale = boxes.new_tensor([width, height])
     centers = clean[..., :2] * scale
     sigmas = (clean[..., 2:] * scale * sigma_ratio).clamp(sigma_min, sigma_max)
-    if target_mode == 'nearest_center':
-        # All valid actors, including individuals and same-group neighbors.
-        # Group labels are deliberately not used to choose the neighbor.
-        distances = (centers[:, :, None] - centers[:, None, :]).square().sum(-1).sqrt()
-        pairs = valid[:, :, None] & valid[:, None, :]
-        pairs = pairs & ~torch.eye(n, dtype=torch.bool, device=boxes.device)[None]
-        nearest = distances.masked_fill(~pairs, float('inf')).min(-1).values
-        sigmas = torch.minimum(sigmas, .35 * nearest[..., None]).clamp(min=sigma_min)
+    if target_mode == 'crowd' and n > 1:
+        offsets = centers[:, :, None, :] - centers[:, None, :, :]
+        distances = offsets.square().sum(-1).sqrt()
+        other = ~torch.eye(n, device=boxes.device, dtype=torch.bool)
+        neighbours = valid[:, :, None] & valid[:, None, :] & other[None]
+        nearest = distances.masked_fill(~neighbours, float('inf')).min(-1).values
+        cap = (crowd_cap_ratio * nearest)[..., None]
+        sigmas = torch.minimum(sigmas, cap).clamp(min=sigma_min)
     xx = torch.arange(width, device=boxes.device, dtype=boxes.dtype) + .5
     yy = torch.arange(height, device=boxes.device, dtype=boxes.dtype) + .5
     dx = (xx[None, None, None, :] - centers[..., 0, None, None]) / sigmas[..., 0, None, None]
@@ -154,7 +162,8 @@ def prepare_targets(outputs, targets, args):
         maps, frame_valid = gaussian_targets(target['boxes'], target['members'][0],
             outputs['actor_frame_valid'][i], h, w, args.heatmap_sigma_ratio,
             args.heatmap_sigma_min, args.heatmap_sigma_max,
-            target_mode=getattr(args, 'heatmap_target_mode', 'box'))
+            getattr(args, 'heatmap_target_mode', 'box'),
+            getattr(args, 'heatmap_crowd_cap_ratio', .35))
         item['group_heatmaps'], item['group_frame_valid'] = maps, frame_valid
         prepared.append(item)
     return prepared
@@ -194,6 +203,7 @@ def add_heatmap_arguments(parser):
     parser.add_argument('--heatmap_sigma_min', type=float, default=.5)
     parser.add_argument('--heatmap_sigma_max', type=float, default=4.)
     parser.add_argument('--heatmap_target_mode', choices=TARGET_MODES, default='box')
+    parser.add_argument('--heatmap_crowd_cap_ratio', type=float, default=.35)
     parser.add_argument('--heatmap_roi_size', type=int, default=3)
     parser.add_argument('--heatmap_roi_sampling', type=int, default=2)
     parser.add_argument('--heatmap_focal_gamma', type=float, default=2.)

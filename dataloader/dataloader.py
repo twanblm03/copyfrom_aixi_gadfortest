@@ -6,6 +6,8 @@ from .cafe import *
 
 import pickle
 import os
+import json
+from concurrent.futures import ThreadPoolExecutor
 
 TRAIN_CAFE_P = ['1', '2', '3', '4', '9', '10', '11', '12', '17', '18', '19', '20', '21', '22', '23', '24']
 VAL_CAFE_P = ['13', '14', '15', '16']
@@ -36,22 +38,46 @@ def read_dataset(args):
         else:
             assert False
 
+        clip_manifest = getattr(args, 'clip_manifest', '')
+        selected = None
+        if clip_manifest:
+            with open(clip_manifest) as stream:
+                selected = json.load(stream)
+
+        def read_annotations(videos, split=None):
+            clip_ids = ({tuple(item['clip']) for item in selected[split]}
+                        if selected is not None else None)
+            workers = getattr(args, 'annotation_workers', 0)
+            if workers <= 1:
+                return cafe_read_annotations(data_path, videos, args.num_class, clip_ids=clip_ids)
+            # Read disjoint video directories concurrently; map returns parts
+            # in the supplied video order, so clip ordering stays stable.
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                parts = pool.map(lambda video: cafe_read_annotations(
+                    data_path, [video], args.num_class, clip_ids=clip_ids), videos)
+                merged = {}
+                for part in parts:
+                    merged.update(part)
+            return merged
+
         if args.val_mode:
             print(f"    Val mode: using TRAIN for training, VAL for testing")
-            train_data = cafe_read_annotations(data_path, TRAIN_VIDEOS_CAFE, args.num_class)
+            train_data = read_annotations(TRAIN_VIDEOS_CAFE, 'train')
             train_frames = cafe_all_frames(train_data)
 
-            test_data = cafe_read_annotations(data_path, VAL_VIDEOS_CAFE, args.num_class)
+            test_data = read_annotations(VAL_VIDEOS_CAFE, 'val')
             test_frames = cafe_all_frames(test_data)
         else:
+            if selected is not None:
+                raise ValueError('clip_manifest is only supported for TRAIN->VAL diagnostics')
             print(f"    Normal mode: using TRAIN+VAL for training, TEST for testing")
             print(f"    Loading training data from videos: {TRAIN_VIDEOS_CAFE + VAL_VIDEOS_CAFE}")
-            train_data = cafe_read_annotations(data_path, TRAIN_VIDEOS_CAFE + VAL_VIDEOS_CAFE, args.num_class)
+            train_data = read_annotations(TRAIN_VIDEOS_CAFE + VAL_VIDEOS_CAFE)
             train_frames = cafe_all_frames(train_data)
             print(f"    Loaded {len(train_frames)} training clips")
 
             print(f"    Loading test data from videos: {TEST_VIDEOS_CAFE}")
-            test_data = cafe_read_annotations(data_path, TEST_VIDEOS_CAFE, args.num_class)
+            test_data = read_annotations(TEST_VIDEOS_CAFE)
             test_frames = cafe_all_frames(test_data)
             print(f"    Loaded {len(test_frames)} test clips")
 
@@ -66,6 +92,9 @@ def read_dataset(args):
         print(f"    Creating dataset objects...")
         train_set = CafeDataset(train_frames, train_data, all_tracks, data_path, args, is_training=True)
         test_set = CafeDataset(test_frames, test_data, all_tracks, data_path, args, is_training=False)
+        if getattr(args, 'fixed_center_train', False):
+            # Explicitly request frozen segment centers for TRAIN.
+            train_set.is_training = False
     else:
         assert False
 

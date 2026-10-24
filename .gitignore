@@ -26,6 +26,7 @@ videomae_features_giant/
 
 # Local cache of NAS-only dataset assets.
 .local_data/
+/.local_deps/segment-anything/
 
 # Generated training artifacts; checkpoints can be hundreds of megabytes each.
 result/
@@ -36,3 +37,28 @@ result/
 /.venv/
 /Dataset
 /results/
+
+# Version only the reviewed, lightweight SAM report bundle.
+!/results/
+/results/*
+!/results/sam_person/
+/results/sam_person/*
+!/results/sam_person/run_registry.csv
+!/results/sam_person/run_registry.json
+!/results/sam_person/20261018_v1/
+!/results/sam_person/20261018_v1/**/*.log
+/results/sam_person/20261018_v1/cache/
+/results/sam_person/20261018_v1/smoke_originals/
+/results/sam_person/20261018_v1/**/checkpoints/
+
+# Reproducible source only; install dependencies separately.
+/.local_deps/
+/.external/
+/.worktrees/
+/.publish/
+/.agents/
+/.aws/
+/.codex/
+.pytest_cache/
+*.pt
+*.ckpt

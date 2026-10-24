@@ -1,3 +1,9 @@
+# H1-sup 完整研究分支
+
+本分支包含当前 H1-sup 实现、修正评价器、place/view 数据划分与正式 view 三视角训练配置。请先阅读 [H1-sup 复现说明](README_H1_SUP.md)。
+
+---
+
 # Towards More Practical Group Activity Detection:<br> A New Benchmark and Model
 
 ### [Dongkeun Kim](https://dk-kim.github.io/), [Youngkil Song](https://www.linkedin.com/in/youngkil-song-8936792a3/), [Minsu Cho](https://cvlab.postech.ac.kr/~mcho/), [Suha Kwak](https://suhakwak.github.io/)

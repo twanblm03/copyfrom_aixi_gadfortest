@@ -72,7 +72,7 @@ def plot_curves(path: str, history: Dict):
     plt.figure(figsize=(10, 6))
 
     # Loss curves
-    for split in ["train", "val"]:
+    for split in ["train", "val", "test"]:
         if split in history:
             epochs = [h["epoch"] for h in history[split]]
             losses = [h["loss"] for h in history[split] if "loss" in h]
@@ -89,7 +89,7 @@ def plot_curves(path: str, history: Dict):
 
     # mAP curves (if available)
     plt.figure(figsize=(10, 6))
-    for split in ["val"]:
+    for split in ["val", "test"]:
         if split in history:
             epochs = [h["epoch"] for h in history[split]]
             map1 = [h["group_mAP_1.0"] for h in history[split] if "group_mAP_1.0" in h]
@@ -101,7 +101,7 @@ def plot_curves(path: str, history: Dict):
 
     plt.xlabel("Epoch")
     plt.ylabel("mAP")
-    plt.title("Validation mAP")
+    plt.title("Evaluation mAP")
     plt.legend()
     map_path = path.replace(".png", "_map.png")
     plt.savefig(map_path, bbox_inches="tight")

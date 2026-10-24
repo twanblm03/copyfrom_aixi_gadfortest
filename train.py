@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.utils.data as data
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
+from util.host_data_parallel import HostStagedDataParallel
 
 import os
 import math
@@ -16,6 +17,7 @@ import re
 import numpy as np
 import argparse
 import gc
+import json
 
 from models import build_model
 from util.utils import *
@@ -24,10 +26,30 @@ import util.logger as loggers
 from dataloader.dataloader import read_dataset
 import evaluation.cafe_eval as evaluation
 from util import experiment
+from util.checkpoint_selection import selected_epoch_metrics
+from util.sam_encoder import (add_sam_encoder_arguments, is_sam_backbone,
+                              sam_resume_config, validate_sam_encoder_args,
+                              validate_sam_resume)
 
-parser = argparse.ArgumentParser(description='Group Activity Detection train code', add_help=False)
+parser = argparse.ArgumentParser(description='Group Activity Detection train code')
 from models.heatmap import add_heatmap_arguments
 add_heatmap_arguments(parser)
+add_sam_encoder_arguments(parser)
+parser.add_argument('--train_mask_mode', choices=['disabled', 'sam_roi', 'sam_roi_blend'], default='disabled')
+parser.add_argument('--mask_context_fraction', type=float, default=0.0)
+parser.add_argument('--mask_empty_eps', type=float, default=1e-6)
+parser.add_argument('--sam_mask_manifest', default='')
+parser.add_argument('--sam_projected_cache', action='store_true')
+parser.add_argument('--clip_manifest', default='',
+                    help='optional bounded TRAIN/VAL clip list for DDP smoke tests')
+parser.add_argument('--sam_cache_root', default='')
+parser.add_argument('--sam_cache_version', default='')
+parser.add_argument('--sam_feature_height', type=int, default=23)
+parser.add_argument('--sam_feature_width', type=int, default=40)
+parser.add_argument('--fixed_center_train', action='store_true',
+                    help='use deterministic segment centers for TRAIN, matching the offline SAM cache')
+parser.add_argument('--annotation_workers', type=int, default=0,
+                    help='parallel readers for annotation JSON files (0 preserves original order and path)')
 
 # Dataset specification
 parser.add_argument('--dataset', default='cafe', type=str, help='dataset name')
@@ -39,6 +61,10 @@ protocol_group.add_argument(
     '--final_test', dest='val_mode', action='store_false',
     help='final-report protocol: train on TRAIN+VAL and evaluate TEST once at the final epoch')
 parser.set_defaults(val_mode=True)
+parser.add_argument('--best_on_test', action='store_true',
+                    help='explicit view TRAIN+VAL -> TEST each epoch; select best_test.pth by TEST mAP@1.0')
+parser.add_argument('--keep_all_checkpoints', action='store_true',
+                    help='retain every epoch checkpoint, including epoch30.pth')
 parser.add_argument('--split', default='place', type=str, help='dataset split. place or view')
 parser.add_argument('--data_path', default='/share/share/aixi/Cafe_Dataset/Cafe_Dataset/Cafe_Dataset/Dataset/', type=str, help='data path')
 parser.add_argument('--tracks_path', default='', type=str,
@@ -53,7 +79,7 @@ parser.add_argument('--mae_version', default='v2', type=str, choices=['v1', 'v2'
 parser.add_argument('--videomae_feats_path', default='./videomae_features_giant', type=str, help='path to videomae features')
 
 # Backbone parameters
-parser.add_argument('--backbone', default='resnet18', type=str, help='feature extraction backbone (resnet18, resnet50, dinov2_vits14, dinov2_vitb14, dinov2_vitl14, dinov2_vitg14)')
+parser.add_argument('--backbone', default='resnet18', type=str, help='feature extraction backbone (resnet18, resnet50, sam_vit_b, dinov2_vits14, dinov2_vitb14, dinov2_vitl14, dinov2_vitg14)')
 parser.add_argument('--dilation', action='store_true', help='use dilation or not')
 parser.add_argument('--frozen_batch_norm', action='store_true', help='use frozen batch normalization')
 parser.add_argument('--freeze_backbone', action='store_true', help='freeze ALL backbone parameters (for DINOv2)')
@@ -129,6 +155,7 @@ def remove_older_checkpoints(save_path, retained_path):
         removed_paths.append(checkpoint_path)
     return removed_paths
 
+
 # Loss coefficients (Individual)
 parser.add_argument('--ce_loss_coef', default=1, type=float)
 parser.add_argument('--eos_coef', default=1, type=float,
@@ -183,10 +210,14 @@ parser.add_argument('--log_interval', default=10, type=int,
 parser.add_argument('--drop_rate', default=0.1, type=float, help='Dropout rate')
 parser.add_argument('--gradient_clipping', action='store_true', help='use gradient clipping')
 parser.add_argument('--max_norm', default=1.0, type=float, help='gradient clipping max norm')
+parser.add_argument('--gradient_clipping_start_epoch', default=1, type=int,
+                    help='first epoch to apply gradient clipping when enabled')
 
 # GPU
 parser.add_argument('--device', default="0, 1", type=str, help='GPU device')
 parser.add_argument('--distributed', action='store_true')
+parser.add_argument('--parallel_transport', choices=['native', 'host'], default='native',
+                    help='DataParallel tensor transport; host matches historical runs')
 parser.add_argument('--local_rank', default=-1, type=int, help='local GPU rank supplied by torchrun')
 
 # Load model
@@ -253,14 +284,41 @@ class DistributedEvalSampler(data.Sampler):
 def main():
     global args, path
 
+    validate_sam_encoder_args(args)
+    sam_resume_checkpoint = None
+    if is_sam_backbone(args) and args.load_model:
+        if not args.model_path:
+            raise ValueError('--load_model requires --model_path')
+        # Verify architecture on CPU before data loading or GPU initialization.
+        import inspect
+        load_options = {'map_location': 'cpu'}
+        if 'weights_only' in inspect.signature(torch.load).parameters:
+            load_options['weights_only'] = False
+        sam_resume_checkpoint = torch.load(args.model_path, **load_options)
+        validate_sam_resume(args, sam_resume_checkpoint)
+
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
 
-    # Development is deliberately the safe default: model selection happens
-    # on VAL. Access to TEST requires the explicit --final_test flag and is
-    # evaluated only once, after the final training epoch.
-    args.protocol = 'development' if args.val_mode else 'final_test'
+    # Development stays the default. Repeated TEST selection is available
+    # only through the explicit view best-on-TEST reporting protocol.
+    if args.best_on_test and (args.val_mode or args.split != 'view'
+                             or args.test_freq != 1 or args.selection_metric != 'group_mAP_1.0'):
+        raise ValueError('best-on-TEST requires view --final_test, test_freq=1 and group_mAP_1.0 selection')
+    args.protocol = ('best_on_test' if args.best_on_test else
+                     'development' if args.val_mode else 'final_test')
     args.eval_split = 'val' if args.val_mode else 'test'
+    if args.distributed and args.parallel_transport != 'native':
+        raise ValueError('--parallel_transport applies only to DataParallel')
+    if args.train_mask_mode != 'disabled':
+        if not (args.research_b0_repro and args.val_mode and args.split in ('place', 'view')
+                and args.backbone == 'resnet18' and args.no_mae
+                and args.heatmap_variant == 'off'):
+            raise ValueError('SAM cache requires a place/view TRAIN->VAL ResNet18 B0 protocol')
+        if not all((args.sam_mask_manifest, args.sam_cache_root, args.sam_cache_version)):
+            raise ValueError('SAM mode requires manifest, cache root, and cache version')
+        if not 0.0 <= args.mask_context_fraction <= 1.0:
+            raise ValueError('mask_context_fraction must be in [0, 1]')
     if args.experiment_tag and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,99}', args.experiment_tag):
         raise ValueError(
             '--experiment_tag must be 1-100 characters using only ASCII letters, numbers, dot, dash, or underscore')
@@ -292,7 +350,11 @@ def main():
         dist.barrier()
 
     if is_main_process():
-        if args.val_mode:
+        if args.best_on_test:
+            print_log(save_path, 'Protocol: BEST-ON-TEST (TRAIN+VAL -> TEST)')
+            print_log(save_path, 'TEST runs every epoch; best_test.pth is selected by TEST group_mAP_1.0.')
+            print_log(save_path, 'All reported best metrics use the same selected TEST checkpoint.')
+        elif args.val_mode:
             print_log(save_path, 'Protocol: DEVELOPMENT (TRAIN -> VAL)')
             selection_direction = 'minimize' if args.selection_metric == 'loss' else 'maximize'
             print_log(save_path, 'Checkpoint selection: %s validation %s' %
@@ -383,6 +445,11 @@ def main():
                   f'{len(test_set)} total non-duplicated samples')
 
     model, criterion = build_model(args)
+    if is_sam_backbone(args):
+        args.sam_encoder_metadata = copy.deepcopy(model.backbone[0].metadata)
+        if is_main_process():
+            print_log(save_path, 'SAM encoder metadata: ' + json.dumps(
+                args.sam_encoder_metadata, sort_keys=True))
     model = model.cuda()
     device_ids = [device_id.strip() for device_id in args.device.split(',') if device_id.strip()]
     if args.distributed:
@@ -391,8 +458,9 @@ def main():
         if is_main_process():
             print_log(save_path, f'Using DDP on {dist.get_world_size()} GPUs')
     elif len(device_ids) > 1:
-        print_log(save_path, f'Using DataParallel on {len(device_ids)} GPUs')
-        model = torch.nn.DataParallel(model)
+        parallel_class = HostStagedDataParallel if args.parallel_transport == 'host' else torch.nn.DataParallel
+        print_log(save_path, f'Using {args.parallel_transport} DataParallel on {len(device_ids)} GPUs')
+        model = parallel_class(model)
     else:
         print_log(save_path, 'Using a single GPU')
 
@@ -427,6 +495,9 @@ def main():
             backbone_params.append(param)
         else:
             head_params.append(param)
+
+    if is_sam_backbone(args) and backbone_params:
+        raise RuntimeError('The SAM image encoder must be fully frozen')
     
     if args.max_train_steps < 0:
         raise ValueError('--max_train_steps must be non-negative')
@@ -434,6 +505,8 @@ def main():
         raise ValueError('--log_interval must be non-negative')
     if args.test_freq < 1:
         raise ValueError('--test_freq must be positive')
+    if args.gradient_clipping_start_epoch < 1:
+        raise ValueError('--gradient_clipping_start_epoch must be positive')
     if args.lr_schedule == 'linear' and (args.warmup_epochs < 1 or args.warmup_epochs > args.epochs):
         raise ValueError('--warmup_epochs must be in [1, --epochs]')
     if args.lr <= 0 or args.max_lr <= 0 or args.lr > args.max_lr:
@@ -512,6 +585,8 @@ def main():
         'epoch': None,
         'value': None,
         'checkpoint_path': None,
+        'split': args.eval_split,
+        'selection_label': 'best-on-TEST' if args.best_on_test else 'VAL' if args.val_mode else 'epoch30',
     }
     selection_resume_note = None
 
@@ -520,7 +595,14 @@ def main():
         # tensors onto each process's local device rather than loading every
         # rank's copy onto GPU 0.
         map_location = f'cuda:{args.local_rank}' if args.distributed else 'cuda'
-        checkpoint = torch.load(args.model_path, map_location=map_location)
+        checkpoint = (sam_resume_checkpoint if sam_resume_checkpoint is not None
+                      else torch.load(args.model_path, map_location=map_location))
+        resume_validation = validate_sam_resume(args, checkpoint)
+        if is_sam_backbone(args):
+            args.sam_resume_validation = resume_validation
+            if is_main_process():
+                print_log(save_path, 'SAM resume verification: ' + json.dumps(
+                    resume_validation, sort_keys=True))
         model.load_state_dict(checkpoint['state_dict'])
         scheduler.load_state_dict(checkpoint['scheduler'])
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -563,11 +645,11 @@ def main():
             if selection_resume_note:
                 print_log(save_path, selection_resume_note)
             if selection_state['value'] is None:
-                print_log(save_path, 'No prior validation-selection state found; tracking starts fresh.')
+                print_log(save_path, 'No prior selection state found; tracking starts fresh.')
             else:
                 print_log(
                     save_path,
-                    'Restored best validation %s: %.4f at epoch %s%s' % (
+                    'Restored best %s: %.4f at epoch %s%s' % (
                         selection_state['metric'],
                         selection_state['value'],
                         selection_state['epoch'],
@@ -575,6 +657,11 @@ def main():
                         if selection_state.get('checkpoint_path') else '',
                     ),
                 )
+        if is_sam_backbone(args):
+            # The full frozen encoder is large; release the CPU resume copy
+            # once strict model/optimizer restoration and logging are done.
+            sam_resume_checkpoint = None
+            del checkpoint
     else:
         start_epoch = 1
 
@@ -584,7 +671,7 @@ def main():
     if args.distributed:
         dist.barrier()
 
-    metrics = evaluation.GAD_Evaluation(args) if is_main_process() else None
+    metrics = evaluation.GAD_Evaluation(args, clip_ids=test_set.frames) if is_main_process() else None
 
     # experiment logging
     args_json_path = os.path.join(save_path, "args.json")
@@ -619,12 +706,12 @@ def main():
             history = experiment.update_history(history, "train", epoch, train_log)
 
         is_new_best = False
-        should_evaluate = (epoch % args.test_freq == 0) if args.val_mode else (epoch == args.epochs)
+        should_evaluate = (epoch % args.test_freq == 0) if (args.val_mode or args.best_on_test) else (epoch == args.epochs)
         if should_evaluate:
             if args.distributed:
                 dist.barrier()
             if is_main_process():
-                eval_name = 'Validation' if args.val_mode else 'Final Test'
+                eval_name = 'Validation' if args.val_mode else 'Test (best-on-TEST)' if args.best_on_test else 'Final Test'
                 print_log(save_path, '----- %s at epoch #%d' % (eval_name, epoch))
 
             # All ranks must execute validation because both the model and
@@ -639,8 +726,7 @@ def main():
                 print_log(save_path, "group mAP at 0.5: %.2f" % result['group_mAP_0.5'])
                 print_log(save_path, "outlier mIoU: %.2f" % result['outlier_mIoU'])
 
-                # Final-test results are recorded for reporting, but only VAL
-                # is allowed to participate in checkpoint selection.
+                # TEST selection is enabled only by the explicit best-on-TEST flag.
                 eval_metrics = dict(test_log)
                 eval_metrics.update({
                     "group_mAP_1.0": result['group_mAP_1.0'],
@@ -649,7 +735,7 @@ def main():
                 })
                 history = experiment.update_history(history, args.eval_split, epoch, eval_metrics)
 
-                if args.val_mode:
+                if args.val_mode or args.best_on_test:
                     current_value = float(eval_metrics[args.selection_metric])
                     previous_value = selection_state['value']
                     is_new_best = (
@@ -657,10 +743,11 @@ def main():
                         or (selection_mode == 'min' and current_value < previous_value)
                         or (selection_mode == 'max' and current_value > previous_value)
                     )
-                    best = experiment.update_best(best, epoch, eval_metrics)
+                    best = (selected_epoch_metrics(best, epoch, eval_metrics, is_new_best)
+                            if args.best_on_test else experiment.update_best(best, epoch, eval_metrics))
                     if is_new_best:
                         best_checkpoint_path = os.path.abspath(
-                            os.path.join(checkpoint_dir, 'best_val.pth'))
+                            os.path.join(checkpoint_dir, 'best_test.pth' if args.best_on_test else 'best_val.pth'))
                         selection_state.update({
                             'epoch': epoch,
                             'value': current_value,
@@ -692,20 +779,23 @@ def main():
                 'protocol': args.protocol,
                 'eval_split': args.eval_split,
             }
+            if is_sam_backbone(args):
+                state['model_config'] = sam_resume_config(args)
+                state['sam_encoder_metadata'] = args.sam_encoder_metadata
             checkpoint_path = os.path.join(checkpoint_dir, 'epoch%d.pth' % epoch)
             save_checkpoint_safely(state, checkpoint_path)
             if is_new_best:
                 save_checkpoint_safely(state, selection_state['checkpoint_path'])
                 print_log(
                     save_path,
-                    'New best validation %s: %.4f at epoch %d; saved %s' % (
+                    'New best ' + ('TEST ' if args.best_on_test else 'validation ') + '%s: %.4f at epoch %d; saved %s' % (
                         args.selection_metric,
                         selection_state['value'],
                         epoch,
                         selection_state['checkpoint_path'],
                     ),
                 )
-            removed_paths = remove_older_checkpoints(checkpoint_dir, checkpoint_path)
+            removed_paths = [] if args.keep_all_checkpoints else remove_older_checkpoints(checkpoint_dir, checkpoint_path)
             if removed_paths:
                 print_log(save_path, 'Removed %d older checkpoint(s); retaining %s' % (
                     len(removed_paths), os.path.basename(checkpoint_path)))
@@ -730,6 +820,7 @@ def train(train_loader, model, criterion, optimizer, epoch, save_path):
                                                                  fill=space_fmt)
     print_freq = args.log_interval if args.log_interval > 0 else len(train_loader)
     epoch_start = time.time()
+    skipped_nonfinite_steps = 0
 
     for i, (images, targets, infos) in enumerate(metric_logger.log_every(train_loader, print_freq, header)):
         images = images.cuda()  # [B, T, 3, H, W]
@@ -757,7 +848,13 @@ def train(train_loader, model, criterion, optimizer, epoch, save_path):
 
             if args.research_b0_repro:
                 valid = torch.stack([t['actor_frame_valid'] for t in micro_targets])
-                outputs = model(micro_images, boxes, dummy_mask, mae_feats, actor_frame_valid=valid)
+                mask_kwargs = {}
+                if args.train_mask_mode != 'disabled':
+                    mask_kwargs = dict(
+                        actor_masks=torch.stack([t['sam_masks'] for t in micro_targets]),
+                        raw_mask_valid=torch.stack([t['raw_mask_valid'] for t in micro_targets]))
+                outputs = model(micro_images, boxes, dummy_mask, mae_feats,
+                                actor_frame_valid=valid, **mask_kwargs)
             else:
                 outputs = model(micro_images, boxes, dummy_mask, mae_feats)
             loss_dict = criterion(outputs, micro_targets, log=False)
@@ -790,9 +887,23 @@ def train(train_loader, model, criterion, optimizer, epoch, save_path):
 
             del boxes, dummy_mask, mae_feats, outputs, loss, loss_dict
 
-        if args.gradient_clipping:
-            nn.utils.clip_grad_norm_(model.parameters(), args.max_norm)
-        optimizer.step()
+        if args.gradient_clipping and epoch >= args.gradient_clipping_start_epoch:
+            grad_norm = nn.utils.clip_grad_norm_(model.parameters(), args.max_norm)
+            bad_gradient = torch.tensor(
+                int(not bool(torch.isfinite(grad_norm))),
+                device=grad_norm.device, dtype=torch.int32)
+            if args.distributed:
+                dist.all_reduce(bad_gradient, op=dist.ReduceOp.MAX)
+            if bool(bad_gradient.item()):
+                skipped_nonfinite_steps += 1
+                if is_main_process():
+                    print_log(save_path,
+                        'Nonfinite gradient norm at epoch %d step %d; skipped optimizer update' %
+                        (epoch, i + 1))
+            else:
+                optimizer.step()
+        else:
+            optimizer.step()
 
         # Ensure the logger holds plain floats rather than computation graphs.
         metric_logger.update(loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
@@ -853,7 +964,9 @@ def train(train_loader, model, criterion, optimizer, epoch, save_path):
             peak_stats = [tuple(local_peak.cpu().tolist())]
         if is_main_process():
             args.peak_cuda_memory_mb = peak_stats
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    summary = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    summary['skipped_nonfinite_steps'] = skipped_nonfinite_steps
+    return summary
 
 
 @torch.no_grad()
@@ -886,9 +999,23 @@ def validate(test_loader, model, criterion, metrics, epoch):
         # compute output
         if args.research_b0_repro:
             valid = torch.stack([t['actor_frame_valid'] for t in targets])
-            outputs = model(images, boxes, dummy_mask, mae_feats, actor_frame_valid=valid)
+            mask_kwargs = {}
+            if args.train_mask_mode != 'disabled':
+                mask_kwargs = dict(actor_masks=torch.stack([t['sam_masks'] for t in targets]),
+                                   raw_mask_valid=torch.stack([t['raw_mask_valid'] for t in targets]))
+            outputs = model(images, boxes, dummy_mask, mae_feats,
+                            actor_frame_valid=valid, **mask_kwargs)
         else:
             outputs = model(images, boxes, dummy_mask, mae_feats)
+
+        for key in ('pred_actions', 'pred_activities', 'membership'):
+            finite = torch.isfinite(outputs[key])
+            if not bool(finite.all()):
+                bad = (~finite).reshape(finite.shape[0], -1).any(-1).nonzero(as_tuple=True)[0]
+                clips = [(infos[j]['vid'], infos[j]['sid']) for j in bad.tolist()]
+                raise FloatingPointError(
+                    'Nonfinite validation %s at epoch %d for clips %s' %
+                    (key, epoch, clips))
 
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict

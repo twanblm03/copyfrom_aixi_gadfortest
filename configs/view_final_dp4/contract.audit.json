@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "split": "view",
+  "protocol": "new_dp4_corrected_evaluator",
+  "training_protocol": "best_on_test",
+  "evaluation_policy": {
+    "split": "test",
+    "epochs": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ],
+    "selection_metric": "group_mAP_1.0",
+    "selection_label": "best-on-TEST",
+    "checkpoint": "best_test.pth",
+    "keep_epoch30": true,
+    "keep_all_epochs": true
+  },
+  "shared_fields_checked": 107,
+  "shared_original_fields_checked": 105,
+  "new_control_fields": [
+    "best_on_test",
+    "keep_all_checkpoints"
+  ],
+  "shared_final_args": {
+    "research_b0_repro": true,
+    "heatmap_dim": 64,
+    "heatmap_bias": -2.0,
+    "heatmap_alpha": 20.0,
+    "heatmap_sigma_min": 0.5,
+    "heatmap_sigma_max": 4.0,
+    "heatmap_roi_size": 3,
+    "heatmap_roi_sampling": 2,
+    "heatmap_focal_gamma": 2.0,
+    "heatmap_focal_alpha": 0.25,
+    "heatmap_focal_coef": 1.0,
+    "heatmap_dice_coef": 1.0,
+    "heatmap_empty_coef": 0.1,
+    "heatmap_cost_focal": 1.0,
+    "heatmap_cost_dice": 1.0,
+    "attention_probe": false,
+    "mask_context_fraction": 0.5,
+    "mask_empty_eps": 1e-06,
+    "clip_manifest": "",
+    "sam_feature_height": 23,
+    "sam_feature_width": 40,
+    "fixed_center_train": false,
+    "annotation_workers": 16,
+    "dataset": "cafe",
+    "val_mode": false,
+    "split": "view",
+    "data_path": "/nas/mzy/dataset/Cafe_Dataset/Cafe_Dataset/Dataset",
+    "tracks_path": "/data2/mzy/GAD/CAFE_codebase/.local_data/cafe/gt_tracks.pkl",
+    "image_width": 1280,
+    "image_height": 720,
+    "random_sampling": false,
+    "num_frame": 5,
+    "num_class": 6,
+    "no_mae": true,
+    "mae_version": "v2",
+    "videomae_feats_path": "./videomae_features_giant",
+    "backbone": "resnet18",
+    "dilation": false,
+    "frozen_batch_norm": false,
+    "freeze_backbone": false,
+    "unfreeze_blocks": 0,
+    "backbone_lr_scale": 1.0,
+    "hidden_dim": 256,
+    "num_boxes": 14,
+    "crop_size": 5,
+    "gar_nheads": 4,
+    "gar_enc_layers": 6,
+    "gar_ffn_dim": 512,
+    "position_embedding": "sine",
+    "num_group_tokens": 12,
+    "aux_loss": false,
+    "group_threshold": 0.5,
+    "distance_threshold": 0.2,
+    "hoi_nheads": 4,
+    "hoi_topk": 0,
+    "temporal_layers": 3,
+    "tcn_kernel_size": 3,
+    "tcn_dropout": 0.1,
+    "temperature": 0.2,
+    "ce_loss_coef": 1.0,
+    "eos_coef": 1.0,
+    "group_eos_coef": 1.0,
+    "group_ce_loss_coef": 1.0,
+    "group_code_loss_coef": 5.0,
+    "consistency_loss_coef": 2.0,
+    "set_cost_group_class": 1.0,
+    "set_cost_membership": 1.0,
+    "random_seed": 1,
+    "epochs": 30,
+    "test_freq": 1,
+    "selection_metric": "group_mAP_1.0",
+    "batch": 16,
+    "micro_batch": 0,
+    "test_batch": 4,
+    "lr": 1e-05,
+    "max_lr": 0.0001,
+    "warmup_epochs": 5,
+    "weight_decay": 0.0,
+    "optimizer": "adam",
+    "lr_schedule": "linear",
+    "lr_step": 4,
+    "lr_step_down": 25,
+    "max_train_steps": 0,
+    "report_peak_memory": true,
+    "log_interval": 10,
+    "drop_rate": 0.1,
+    "gradient_clipping": false,
+    "max_norm": 1.0,
+    "gradient_clipping_start_epoch": 1,
+    "device": "0,1,2,3",
+    "distributed": false,
+    "parallel_transport": "host",
+    "local_rank": -1,
+    "load_model": false,
+    "model_path": "",
+    "groundtruth": "/nas/mzy/dataset/Cafe_Dataset/Cafe_Dataset/evaluation/gt_tracks.txt",
+    "labelmap": "./label_map/group_action_list.pbtxt",
+    "giou_thresh": 1.0,
+    "eval_type": "gt_base",
+    "eval_image_width": 1280,
+    "eval_image_height": 720,
+    "protocol": "best_on_test",
+    "eval_split": "test",
+    "use_mae": false,
+    "mae_dim": 0,
+    "best_on_test": true,
+    "keep_all_checkpoints": true
+  },
+  "pairwise_development_to_final": {
+    "b0": {
+      "status": "passed",
+      "reference_fields_checked": 115,
+      "args_fields_checked": 117,
+      "changes": {
+        "best_on_test": {
+          "development": "<absent>",
+          "final": true
+        },
+        "checkpoint_root": {
+          "development": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/view_dp4_20261021/b0/checkpoints",
+          "final": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/view_final_20261023/b0/checkpoints"
+        },
+        "eval_split": {
+          "development": "val",
+          "final": "test"
+        },
+        "experiment_tag": {
+          "development": "view_b0_randomseg_dp4_lr1_noclip_seed1",
+          "final": "view_final_b0_trainval_dp4_lr1_noclip_seed1"
+        },
+        "keep_all_checkpoints": {
+          "development": "<absent>",
+          "final": true
+        },
+        "protocol": {
+          "development": "development",
+          "final": "best_on_test"
+        },
+        "val_mode": {
+          "development": true,
+          "final": false
+        }
+      },
+      "unchanged_original_fields": 110,
+      "reference_args_sha256": "e2d2f655c4a5f8f077554043c068af871fef7ed5a49ebb5341045a2564c3a078",
+      "final_args_sha256": "4044de5a47922b54ef63d8c28c3613dfa6be43537940e8818e03edfa83f57b22"
+    },
+    "h1_sup": {
+      "status": "passed",
+      "reference_fields_checked": 115,
+      "args_fields_checked": 117,
+      "changes": {
+        "best_on_test": {
+          "development": "<absent>",
+          "final": true
+        },
+        "checkpoint_root": {
+          "development": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/view_dp4_20261021/h1_sup/checkpoints",
+          "final": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/view_final_20261023/h1_sup/checkpoints"
+        },
+        "eval_split": {
+          "development": "val",
+          "final": "test"
+        },
+        "experiment_tag": {
+          "development": "view_h1_sup_randomseg_dp4_lr1_noclip_seed1",
+          "final": "view_final_h1_sup_trainval_dp4_lr1_noclip_seed1"
+        },
+        "keep_all_checkpoints": {
+          "development": "<absent>",
+          "final": true
+        },
+        "protocol": {
+          "development": "development",
+          "final": "best_on_test"
+        },
+        "val_mode": {
+          "development": true,
+          "final": false
+        }
+      },
+      "unchanged_original_fields": 110,
+      "reference_args_sha256": "7329d6cd690bea451f303d3542b2647dc9c8d03b5d73269afe8a25bc7efb1107",
+      "final_args_sha256": "be1134e7b171aba63d3f6552e509a75098271d25ed194c6db10548ee9ef2bda6"
+    },
+    "sam": {
+      "status": "passed",
+      "reference_fields_checked": 115,
+      "args_fields_checked": 117,
+      "changes": {
+        "best_on_test": {
+          "development": "<absent>",
+          "final": true
+        },
+        "checkpoint_root": {
+          "development": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/view_dp4_20261021/sam/checkpoints",
+          "final": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/view_final_20261023/sam/checkpoints"
+        },
+        "eval_split": {
+          "development": "val",
+          "final": "test"
+        },
+        "experiment_tag": {
+          "development": "view_sam_randomsegments_dp4_lr1_noclip_seed1",
+          "final": "view_final_sam_trainval_dp4_lr1_noclip_seed1"
+        },
+        "keep_all_checkpoints": {
+          "development": "<absent>",
+          "final": true
+        },
+        "protocol": {
+          "development": "development",
+          "final": "best_on_test"
+        },
+        "sam_cache_root": {
+          "development": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/sam/view_cache",
+          "final": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/sam/view_final_cache"
+        },
+        "sam_mask_manifest": {
+          "development": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/sam/view_randomsegments_manifest.jsonl",
+          "final": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/.local_data/sam/view_final_trainval_test_manifest.jsonl"
+        },
+        "val_mode": {
+          "development": true,
+          "final": false
+        }
+      },
+      "unchanged_original_fields": 108,
+      "reference_args_sha256": "7dc66bbc41cd933a27de1e1107a3cdceb55e45a5e5fbc727a773219ef1a0ffa6",
+      "final_args_sha256": "e483342cd2e0ce3c99f115baf771e977d2324df8f2ad0924f6f2be176af37c35"
+    }
+  },
+  "evaluator": {
+    "sha256": "f1cd5f05b63ec769c149ad1b8926922eb03bb70ab3665fb7e6bf75cec28b40a0",
+    "status": "passed"
+  },
+  "runtime_policy": {
+    "status": "passed",
+    "train_sha256": "27aeded3ff94a4a6fb236e7062091989be963cade0c4098e7584e739af04c932",
+    "evaluation_policy_guard_line": 670,
+    "evaluation_lines": [
+      681
+    ],
+    "explicit_selection_policy_lines": [
+      708
+    ]
+  },
+  "argv_roundtrips": {
+    "b0": {
+      "status": "passed",
+      "args_fields_checked": 117
+    },
+    "h1_sup": {
+      "status": "passed",
+      "args_fields_checked": 117
+    },
+    "sam": {
+      "status": "passed",
+      "args_fields_checked": 117
+    }
+  },
+  "plan_path": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/contract.plan.json",
+  "sources": {
+    "b0": {
+      "reference_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_dp4/b0.args.json",
+      "resolved_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/b0.args.json",
+      "argv": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/b0.argv.json"
+    },
+    "h1_sup": {
+      "reference_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_dp4/h1_sup.args.json",
+      "resolved_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/h1_sup.args.json",
+      "argv": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/h1_sup.argv.json"
+    },
+    "sam": {
+      "reference_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_dp4/sam.args.json",
+      "resolved_args": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/sam.args.json",
+      "argv": "/data2/mzy/GAD/CAFE_codebase/.worktrees/cafe-sam-person-mask-20261018/configs/view_final_dp4/sam.argv.json"
+    }
+  }
+}
